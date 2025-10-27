@@ -32,7 +32,8 @@ export function SessionSetup({
         return {
           ...player,
           team: assignments[playerId] ?? "A",
-          goals: 0
+          goals: 0,
+          assists: 0
         } satisfies GamePlayer;
       })
       .filter((value): value is GamePlayer => Boolean(value));

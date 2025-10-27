@@ -17,6 +17,7 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
         name: string;
         points: number;
         goals: number;
+        assists: number;
         attendance: number;
       }
     >();
@@ -27,12 +28,14 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
         if (entry) {
           entry.points += player.weekPoints;
           entry.goals += player.goals;
+          entry.assists += player.assists ?? 0;
           entry.attendance += player.attendance ? 1 : 0;
         } else {
           totals.set(player.playerId, {
             name: player.playerName,
             points: player.weekPoints,
             goals: player.goals,
+            assists: player.assists ?? 0,
             attendance: player.attendance ? 1 : 0
           });
         }
@@ -73,6 +76,7 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
                     <th style={{ padding: "0.5rem" }}>Player</th>
                     <th style={{ padding: "0.5rem" }}>Points</th>
                     <th style={{ padding: "0.5rem" }}>Goals</th>
+                    <th style={{ padding: "0.5rem" }}>Assists</th>
                     <th style={{ padding: "0.5rem" }}>Weeks</th>
                   </tr>
                 </thead>
@@ -85,6 +89,7 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
                       <td style={{ padding: "0.6rem 0.5rem", fontWeight: 600 }}>{player.name}</td>
                       <td style={{ padding: "0.6rem 0.5rem" }}>{player.points}</td>
                       <td style={{ padding: "0.6rem 0.5rem" }}>{player.goals}</td>
+                      <td style={{ padding: "0.6rem 0.5rem" }}>{player.assists}</td>
                       <td style={{ padding: "0.6rem 0.5rem" }}>{player.attendance}</td>
                     </tr>
                   ))}
@@ -137,7 +142,7 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
                           key={player.playerId}
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "1.5fr repeat(3, 1fr)",
+                            gridTemplateColumns: "1.5fr repeat(4, 1fr)",
                             padding: "0.35rem 0",
                             borderBottom: "1px solid rgba(148, 163, 184, 0.2)"
                           }}
@@ -145,6 +150,7 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
                           <span style={{ fontWeight: 600 }}>{player.playerName}</span>
                           <span>Team {player.team}</span>
                           <span>{player.goals} goals</span>
+                          <span>{player.assists ?? 0} assists</span>
                           <span>{player.weekPoints} pts</span>
                         </li>
                       ))}

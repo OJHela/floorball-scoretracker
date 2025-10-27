@@ -36,7 +36,15 @@ function sanitizeLiveGameState(state: LiveGameState | null | undefined): LiveGam
   const selectedPlayerIds = Array.isArray(state.selectedPlayerIds) ? state.selectedPlayerIds : [];
   const assignments =
     state.assignments && typeof state.assignments === "object" ? (state.assignments as Record<string, "A" | "B">) : {};
-  const gamePlayers = Array.isArray(state.gamePlayers) ? state.gamePlayers : [];
+  const gamePlayers = Array.isArray(state.gamePlayers)
+    ? state.gamePlayers.map((player: any) => ({
+        id: String(player.id),
+        name: player.name ?? "",
+        team: player.team === "B" ? "B" : "A",
+        goals: typeof player.goals === "number" ? Math.max(0, player.goals) : 0,
+        assists: typeof player.assists === "number" ? Math.max(0, player.assists) : 0
+      }))
+    : [];
   const secondsElapsed = typeof state.secondsElapsed === "number" ? state.secondsElapsed : 0;
   const isTimerRunning = Boolean(state.isTimerRunning);
   const timerOwnerId = typeof state.timerOwnerId === "string" ? state.timerOwnerId : null;

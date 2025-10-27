@@ -34,6 +34,9 @@ export function GameSummary({
   const goalPointsValue = scoringConfig.goalPoints;
 
   const totalGoals = payload.reduce((sum, player) => sum + player.goals, 0);
+  const totalAssists = scoringConfig.enableAssists
+    ? payload.reduce((sum, player) => sum + player.assists, 0)
+    : 0;
 
   const winnerLabel =
     winner === "Tie"
@@ -87,6 +90,11 @@ export function GameSummary({
         <div className="pill" style={{ backgroundColor: "rgba(16, 185, 129, 0.12)", color: "#047857" }}>
           Goals logged: {totalGoals}
         </div>
+        {scoringConfig.enableAssists && (
+          <div className="pill" style={{ backgroundColor: "rgba(126, 34, 206, 0.12)", color: "#6d28d9" }}>
+            Assists logged: {totalAssists}
+          </div>
+        )}
         <div className="pill" style={{ backgroundColor: "rgba(14, 165, 233, 0.12)", color: "#0ea5e9" }}>
           Result: {winnerLabel}
         </div>
@@ -106,6 +114,9 @@ export function GameSummary({
               <th style={{ padding: "0.25rem 0.5rem" }}>Player</th>
               <th style={{ padding: "0.25rem 0.5rem" }}>Team</th>
               <th style={{ padding: "0.25rem 0.5rem" }}>Goals</th>
+              {scoringConfig.enableAssists && (
+                <th style={{ padding: "0.25rem 0.5rem" }}>Assists</th>
+              )}
               <th style={{ padding: "0.25rem 0.5rem" }}>Attendance</th>
               <th style={{ padding: "0.25rem 0.5rem" }}>Winner bonus</th>
               <th style={{ padding: "0.25rem 0.5rem" }}>Weekly points</th>
@@ -113,7 +124,9 @@ export function GameSummary({
           </thead>
           <tbody>
             {payload.map((player) => {
-              const basePoints = attendancePoints + player.goals * goalPointsValue;
+              const assistsPointsValue = scoringConfig.enableAssists ? scoringConfig.assistPoints : 0;
+              const basePoints =
+                attendancePoints + player.goals * goalPointsValue + player.assists * assistsPointsValue;
               const winnerBonus = player.weekPoints - basePoints;
               return (
                 <tr
@@ -129,6 +142,9 @@ export function GameSummary({
                   </td>
                   <td style={{ padding: "0.6rem 0.5rem" }}>Team {player.team}</td>
                   <td style={{ padding: "0.6rem 0.5rem" }}>{player.goals}</td>
+                  {scoringConfig.enableAssists && (
+                    <td style={{ padding: "0.6rem 0.5rem" }}>{player.assists}</td>
+                  )}
                   <td style={{ padding: "0.6rem 0.5rem" }}>+{attendancePoints}</td>
                   <td style={{ padding: "0.6rem 0.5rem" }}>{winnerBonus}</td>
                   <td style={{ padding: "0.6rem 0.5rem", fontWeight: 600 }}>{player.weekPoints}</td>

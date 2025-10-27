@@ -15,6 +15,7 @@ type GameScreenProps = {
   onTimerToggle: () => void;
   onTimerReset: () => void;
   onTimerTick: () => void;
+  enableAssists: boolean;
 };
 
 function formatClock(seconds: number) {
@@ -35,7 +36,8 @@ export function GameScreen({
   isTimerOwner,
   onTimerToggle,
   onTimerReset,
-  onTimerTick
+  onTimerTick,
+  enableAssists
 }: GameScreenProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,6 +62,13 @@ export function GameScreen({
   const adjustGoals = (playerId: string, delta: number) => {
     const updated = players.map((player) =>
       player.id === playerId ? { ...player, goals: Math.max(0, player.goals + delta) } : player
+    );
+    onPlayersChange(updated);
+  };
+
+  const adjustAssists = (playerId: string, delta: number) => {
+    const updated = players.map((player) =>
+      player.id === playerId ? { ...player, assists: Math.max(0, player.assists + delta) } : player
     );
     onPlayersChange(updated);
   };
@@ -196,37 +205,72 @@ export function GameScreen({
                       <p style={{ margin: 0, fontWeight: 600 }}>{player.name}</p>
                       <p style={{ margin: 0, color: "#64748b", fontSize: "0.875rem" }}>
                         Goals: {player.goals}
+                        {enableAssists && ` • Assists: ${player.assists}`}
                       </p>
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        onClick={() => adjustGoals(player.id, -1)}
-                        style={{
-                          width: "2.5rem",
-                          height: "2.5rem",
-                          padding: 0,
-                          borderRadius: "12px",
-                          fontSize: "1.25rem"
-                        }}
-                      >
-                        –
-                      </button>
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={() => adjustGoals(player.id, 1)}
-                        style={{
-                          width: "2.5rem",
-                          height: "2.5rem",
-                          padding: 0,
-                          borderRadius: "12px",
-                          fontSize: "1.25rem"
-                        }}
-                      >
-                        +
-                      </button>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button
+                          className="button button-secondary"
+                          type="button"
+                          onClick={() => adjustGoals(player.id, -1)}
+                          style={{
+                            width: "2.5rem",
+                            height: "2.5rem",
+                            padding: 0,
+                            borderRadius: "12px",
+                            fontSize: "1.25rem"
+                          }}
+                        >
+                          –
+                        </button>
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() => adjustGoals(player.id, 1)}
+                          style={{
+                            width: "2.5rem",
+                            height: "2.5rem",
+                            padding: 0,
+                            borderRadius: "12px",
+                            fontSize: "1.25rem"
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                      {enableAssists && (
+                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                          <button
+                            className="button button-secondary"
+                            type="button"
+                            onClick={() => adjustAssists(player.id, -1)}
+                            style={{
+                              width: "2.5rem",
+                              height: "2.5rem",
+                              padding: 0,
+                              borderRadius: "12px",
+                              fontSize: "1.25rem"
+                            }}
+                          >
+                            A-
+                          </button>
+                          <button
+                            className="button"
+                            type="button"
+                            onClick={() => adjustAssists(player.id, 1)}
+                            style={{
+                              width: "2.5rem",
+                              height: "2.5rem",
+                              padding: 0,
+                              borderRadius: "12px",
+                              fontSize: "1.25rem"
+                            }}
+                          >
+                            A+
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </article>
                 ))}

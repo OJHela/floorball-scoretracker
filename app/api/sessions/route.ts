@@ -48,6 +48,7 @@ export async function GET(request: Request) {
           player_id,
           team,
           goals,
+          assists,
           attendance,
           week_points,
           players:players (
@@ -76,6 +77,7 @@ export async function GET(request: Request) {
           playerName: player.players?.name ?? "Unknown",
           team: player.team,
           goals: player.goals,
+          assists: player.assists ?? 0,
           attendance: player.attendance,
           weekPoints: player.week_points
         })) ?? []
@@ -137,6 +139,7 @@ export async function POST(request: Request) {
     player_id: player.playerId,
     team: player.team,
     goals: player.goals,
+    assists: player.assists,
     attendance: player.attendance,
     week_points: player.weekPoints
   }));

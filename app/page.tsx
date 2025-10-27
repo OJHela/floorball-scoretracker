@@ -129,7 +129,9 @@ function PageContent() {
     () => ({
       attendancePoints: leagueAccess?.league.attendancePoints ?? 1,
       goalPoints: leagueAccess?.league.goalPoints ?? 1,
-      winBonus: leagueAccess?.league.winBonus ?? 5
+      winBonus: leagueAccess?.league.winBonus ?? 5,
+      enableAssists: leagueAccess?.league.enableAssists ?? false,
+      assistPoints: leagueAccess?.league.assistPoints ?? 1
     }),
     [leagueAccess]
   );
@@ -367,7 +369,10 @@ function PageContent() {
       scheduleLocalUpdate((prev) => ({
         ...prev,
         stage: "game",
-        gamePlayers: players.map((player) => ({ ...player })),
+        gamePlayers: players.map((player) => ({
+          ...player,
+          assists: player.assists ?? 0
+        })),
         secondsElapsed: 0,
         isTimerRunning: false,
         timerOwnerId: null
@@ -380,7 +385,10 @@ function PageContent() {
     (players: GamePlayer[]) => {
       scheduleLocalUpdate((prev) => ({
         ...prev,
-        gamePlayers: players.map((player) => ({ ...player }))
+        gamePlayers: players.map((player) => ({
+          ...player,
+          assists: player.assists ?? 0
+        }))
       }));
     },
     [scheduleLocalUpdate]
@@ -391,7 +399,10 @@ function PageContent() {
       scheduleLocalUpdate((prev) => ({
         ...prev,
         stage: "summary",
-        gamePlayers: players.map((player) => ({ ...player }))
+        gamePlayers: players.map((player) => ({
+          ...player,
+          assists: player.assists ?? 0
+        }))
       }));
     },
     [scheduleLocalUpdate]
@@ -893,14 +904,15 @@ function PageContent() {
               secondsElapsed={gameState.secondsElapsed}
               isTimerRunning={gameState.isTimerRunning}
               isTimerOwner={isTimerOwner}
-              onTimerToggle={handleTimerToggle}
-              onTimerReset={handleTimerReset}
-              onTimerTick={handleTimerTick}
-            />
-          )}
+          onTimerToggle={handleTimerToggle}
+          onTimerReset={handleTimerReset}
+          onTimerTick={handleTimerTick}
+          enableAssists={scoringConfig.enableAssists}
+        />
+      )}
 
-          {gameState.stage === "summary" && (
-            <GameSummary
+      {gameState.stage === "summary" && (
+        <GameSummary
               players={gameState.gamePlayers}
               onSave={handleSaveSession}
               onReset={resetToRoster}

@@ -10,12 +10,14 @@ export type TeamSide = "A" | "B";
 export type GamePlayer = Player & {
   team: TeamSide;
   goals: number;
+  assists: number;
 };
 
 export type SessionPlayerPayload = {
   playerId: string;
   team: TeamSide;
   goals: number;
+  assists: number;
   attendance: boolean;
   weekPoints: number;
 };
@@ -50,6 +52,8 @@ export type League = {
   attendancePoints: number;
   goalPoints: number;
   winBonus: number;
+  enableAssists: boolean;
+  assistPoints: number;
 };
 
 export type LeagueSummary = {
@@ -59,6 +63,8 @@ export type LeagueSummary = {
   attendancePoints: number;
   goalPoints: number;
   winBonus: number;
+  enableAssists: boolean;
+  assistPoints: number;
 };
 
 export type LeagueAccess =
@@ -96,4 +102,6 @@ export type ScoringConfig = {
   attendancePoints: number;
   goalPoints: number;
   winBonus: number;
+  enableAssists: boolean;
+  assistPoints: number;
 };

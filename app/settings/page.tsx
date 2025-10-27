@@ -13,7 +13,13 @@ function SettingsContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [form, setForm] = useState({ attendancePoints: 1, goalPoints: 1, winBonus: 5 });
+  const [form, setForm] = useState({
+    attendancePoints: 1,
+    goalPoints: 1,
+    winBonus: 5,
+    enableAssists: false,
+    assistPoints: 1
+  });
 
   const selectedLeague = useMemo(
     () => leagues.find((league) => league.id === selectedLeagueId) ?? null,
@@ -47,7 +53,9 @@ function SettingsContent() {
           setForm({
             attendancePoints: nextLeague.attendancePoints,
             goalPoints: nextLeague.goalPoints,
-            winBonus: nextLeague.winBonus
+            winBonus: nextLeague.winBonus,
+            enableAssists: nextLeague.enableAssists,
+            assistPoints: nextLeague.assistPoints
           });
         }
         return nextId;
@@ -65,7 +73,9 @@ function SettingsContent() {
       setForm({
         attendancePoints: selectedLeague.attendancePoints,
         goalPoints: selectedLeague.goalPoints,
-        winBonus: selectedLeague.winBonus
+        winBonus: selectedLeague.winBonus,
+        enableAssists: selectedLeague.enableAssists,
+        assistPoints: selectedLeague.assistPoints
       });
     }
   }, [selectedLeague]);
@@ -97,6 +107,8 @@ function SettingsContent() {
       attendancePoints: number;
       goalPoints: number;
       winBonus: number;
+      enableAssists: boolean;
+      assistPoints: number;
     };
 
     setLeagues((current) =>
@@ -106,7 +118,9 @@ function SettingsContent() {
               ...league,
               attendancePoints: payload.attendancePoints,
               goalPoints: payload.goalPoints,
-              winBonus: payload.winBonus
+              winBonus: payload.winBonus,
+              enableAssists: payload.enableAssists,
+              assistPoints: payload.assistPoints
             }
           : league
       )
@@ -245,6 +259,35 @@ function SettingsContent() {
                   }}
                 />
               </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <input
+                  type="checkbox"
+                  checked={form.enableAssists}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, enableAssists: event.target.checked }))
+                  }
+                />
+                <span>Enable assists</span>
+              </label>
+              {form.enableAssists && (
+                <label style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <span>Points per assist</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.assistPoints}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, assistPoints: Number(event.target.value) }))
+                    }
+                    style={{
+                      padding: "0.75rem 1rem",
+                      borderRadius: "10px",
+                      border: "1px solid rgba(148, 163, 184, 0.7)",
+                      backgroundColor: "#f8fafc"
+                    }}
+                  />
+                </label>
+              )}
               <button className="button" type="submit" disabled={loading}>
                 {loading ? "Saving…" : "Save changes"}
               </button>

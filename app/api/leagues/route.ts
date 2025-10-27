@@ -21,7 +21,9 @@ export async function GET(request: Request) {
           public_token,
           attendance_points,
           goal_points,
-          win_bonus
+          win_bonus,
+          enable_assists,
+          assist_points
         )
       `
     )
@@ -43,7 +45,9 @@ export async function GET(request: Request) {
           role: entry.role ?? "member",
           attendancePoints: entry.leagues.attendance_points ?? 1,
           goalPoints: entry.leagues.goal_points ?? 1,
-          winBonus: entry.leagues.win_bonus ?? 5
+          winBonus: entry.leagues.win_bonus ?? 5,
+          enableAssists: entry.leagues.enable_assists ?? false,
+          assistPoints: entry.leagues.assist_points ?? 1
         };
         return [league];
       }) ?? [];
@@ -72,7 +76,7 @@ export async function POST(request: Request) {
       name,
       owner_user_id: userId
     })
-    .select("id, name, public_token, attendance_points, goal_points, win_bonus")
+    .select("id, name, public_token, attendance_points, goal_points, win_bonus, enable_assists, assist_points")
     .single();
 
   if (leagueError || !league) {
@@ -97,7 +101,9 @@ export async function POST(request: Request) {
       role: "admin",
       attendancePoints: league.attendance_points ?? 1,
       goalPoints: league.goal_points ?? 1,
-      winBonus: league.win_bonus ?? 5
+      winBonus: league.win_bonus ?? 5,
+      enableAssists: league.enable_assists ?? false,
+      assistPoints: league.assist_points ?? 1
     } satisfies League
   });
 }

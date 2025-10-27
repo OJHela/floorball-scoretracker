@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireLeagueAdmin } from "../../../../lib/leagueAccess";
-import { getSupabaseServerClient } from "../../../../lib/supabaseServer";
+import { requireLeagueAdmin } from "../../../../../lib/leagueAccess";
+import { getSupabaseServerClient } from "../../../../../lib/supabaseServer";
 
 type Params = {
   params: {
@@ -16,13 +16,22 @@ export async function PUT(request: Request, { params }: Params) {
     attendancePoints?: number;
     goalPoints?: number;
     winBonus?: number;
+    enableAssists?: boolean;
+    assistPoints?: number;
   };
 
   const attendancePoints = Number(payload.attendancePoints ?? 1);
   const goalPoints = Number(payload.goalPoints ?? 1);
   const winBonus = Number(payload.winBonus ?? 5);
+  const assistPoints = Number(payload.assistPoints ?? 1);
+  const enableAssists = Boolean(payload.enableAssists);
 
-  if (Number.isNaN(attendancePoints) || Number.isNaN(goalPoints) || Number.isNaN(winBonus)) {
+  if (
+    Number.isNaN(attendancePoints) ||
+    Number.isNaN(goalPoints) ||
+    Number.isNaN(winBonus) ||
+    Number.isNaN(assistPoints)
+  ) {
     return NextResponse.json({ error: "Points must be numeric" }, { status: 400 });
   }
 
@@ -32,7 +41,9 @@ export async function PUT(request: Request, { params }: Params) {
     .update({
       attendance_points: attendancePoints,
       goal_points: goalPoints,
-      win_bonus: winBonus
+      win_bonus: winBonus,
+      enable_assists: enableAssists,
+      assist_points: assistPoints
     })
     .eq("id", params.id);
 
@@ -43,7 +54,9 @@ export async function PUT(request: Request, { params }: Params) {
   return NextResponse.json({
     attendancePoints,
     goalPoints,
-    winBonus
+    winBonus,
+    enableAssists,
+    assistPoints
   });
 }
 
@@ -54,7 +67,7 @@ export async function GET(request: Request, { params }: Params) {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("leagues")
-    .select("attendance_points, goal_points, win_bonus")
+    .select("attendance_points, goal_points, win_bonus, enable_assists, assist_points")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -69,6 +82,8 @@ export async function GET(request: Request, { params }: Params) {
   return NextResponse.json({
     attendancePoints: data.attendance_points ?? 1,
     goalPoints: data.goal_points ?? 1,
-    winBonus: data.win_bonus ?? 5
+    winBonus: data.win_bonus ?? 5,
+    enableAssists: data.enable_assists ?? false,
+    assistPoints: data.assist_points ?? 1
   });
 }
