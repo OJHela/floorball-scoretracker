@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildWeeklyPoints } from "../lib/scoring";
-import { type GamePlayer, type SavedSession } from "../types";
+import { type GamePlayer, type SavedSession, type ScoringConfig } from "../types";
 
 type GameSummaryProps = {
   players: GamePlayer[];
@@ -11,12 +11,27 @@ type GameSummaryProps = {
   saving: boolean;
   lastError: string | null;
   history: SavedSession[];
+  scoringConfig: ScoringConfig;
 };
 
-export function GameSummary({ players, onSave, onReset, saving, lastError, history }: GameSummaryProps) {
+export function GameSummary({
+  players,
+  onSave,
+  onReset,
+  saving,
+  lastError,
+  history,
+  scoringConfig
+}: GameSummaryProps) {
   const [savingSuccess, setSavingSuccess] = useState(false);
 
-  const { payload, teamScores, winner } = useMemo(() => buildWeeklyPoints(players), [players]);
+  const { payload, teamScores, winner } = useMemo(
+    () => buildWeeklyPoints(players, scoringConfig),
+    [players, scoringConfig]
+  );
+
+  const attendancePoints = scoringConfig.attendancePoints;
+  const goalPointsValue = scoringConfig.goalPoints;
 
   const totalGoals = payload.reduce((sum, player) => sum + player.goals, 0);
 
@@ -98,7 +113,8 @@ export function GameSummary({ players, onSave, onReset, saving, lastError, histo
           </thead>
           <tbody>
             {payload.map((player) => {
-              const winnerBonus = player.weekPoints - player.goals - 1;
+              const basePoints = attendancePoints + player.goals * goalPointsValue;
+              const winnerBonus = player.weekPoints - basePoints;
               return (
                 <tr
                   key={player.playerId}
@@ -113,7 +129,7 @@ export function GameSummary({ players, onSave, onReset, saving, lastError, histo
                   </td>
                   <td style={{ padding: "0.6rem 0.5rem" }}>Team {player.team}</td>
                   <td style={{ padding: "0.6rem 0.5rem" }}>{player.goals}</td>
-                  <td style={{ padding: "0.6rem 0.5rem" }}>+1</td>
+                  <td style={{ padding: "0.6rem 0.5rem" }}>+{attendancePoints}</td>
                   <td style={{ padding: "0.6rem 0.5rem" }}>{winnerBonus}</td>
                   <td style={{ padding: "0.6rem 0.5rem", fontWeight: 600 }}>{player.weekPoints}</td>
                 </tr>

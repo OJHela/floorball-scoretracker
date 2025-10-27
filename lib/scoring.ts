@@ -1,4 +1,9 @@
-import { type GamePlayer, type SessionPlayerPayload, type TeamSide } from "../types";
+import {
+  type GamePlayer,
+  type SessionPlayerPayload,
+  type TeamSide,
+  type ScoringConfig
+} from "../types";
 
 export function calculateTeamScore(players: GamePlayer[], side: TeamSide) {
   return players
@@ -6,7 +11,11 @@ export function calculateTeamScore(players: GamePlayer[], side: TeamSide) {
     .reduce((total, player) => total + player.goals, 0);
 }
 
-export function buildWeeklyPoints(players: GamePlayer[]) {
+export function buildWeeklyPoints(players: GamePlayer[], config?: ScoringConfig) {
+  const attendancePoints = config?.attendancePoints ?? 1;
+  const goalPointsValue = config?.goalPoints ?? 1;
+  const winBonusValue = config?.winBonus ?? 5;
+
   const teamScores = {
     A: calculateTeamScore(players, "A"),
     B: calculateTeamScore(players, "B")
@@ -17,9 +26,9 @@ export function buildWeeklyPoints(players: GamePlayer[]) {
   if (teamScores.B > teamScores.A) winner = "B";
 
   const payload = players.map<SessionPlayerPayload>((player) => {
-    const goalPoints = player.goals;
-    const winnerBonus = winner !== "Tie" && player.team === winner ? 5 : 0;
-    const weekPoints = 1 + goalPoints + winnerBonus;
+    const goalPoints = player.goals * goalPointsValue;
+    const winnerBonus = winner !== "Tie" && player.team === winner ? winBonusValue : 0;
+    const weekPoints = attendancePoints + goalPoints + winnerBonus;
 
     return {
       playerId: player.id,

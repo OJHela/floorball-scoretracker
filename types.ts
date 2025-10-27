@@ -47,12 +47,18 @@ export type League = {
   name: string;
   publicToken: string;
   role: LeagueRole;
+  attendancePoints: number;
+  goalPoints: number;
+  winBonus: number;
 };
 
 export type LeagueSummary = {
   id: string;
   name: string;
   publicToken: string;
+  attendancePoints: number;
+  goalPoints: number;
+  winBonus: number;
 };
 
 export type LeagueAccess =
@@ -84,4 +90,10 @@ export const emptyLiveGameState: LiveGameState = {
   secondsElapsed: 0,
   isTimerRunning: false,
   timerOwnerId: null
+};
+
+export type ScoringConfig = {
+  attendancePoints: number;
+  goalPoints: number;
+  winBonus: number;
 };

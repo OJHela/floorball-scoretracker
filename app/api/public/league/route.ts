@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("leagues")
-    .select("id, name, public_token")
+    .select("id, name, public_token, attendance_points, goal_points, win_bonus")
     .eq("public_token", token)
     .maybeSingle();
 
@@ -28,7 +28,10 @@ export async function GET(request: Request) {
     league: {
       id: data.id,
       name: data.name,
-      publicToken: data.public_token
+      publicToken: data.public_token,
+      attendancePoints: data.attendance_points ?? 1,
+      goalPoints: data.goal_points ?? 1,
+      winBonus: data.win_bonus ?? 5
     }
   });
 }

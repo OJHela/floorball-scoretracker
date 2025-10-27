@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   FormEvent,
   Suspense,
@@ -25,7 +26,8 @@ import {
   type LeagueSummary,
   type LiveGameState,
   type Player,
-  type SavedSession
+  type SavedSession,
+  type ScoringConfig
 } from "../types";
 
 type LeagueApiConfig = {
@@ -122,6 +124,15 @@ function PageContent() {
       headers
     } satisfies LeagueApiConfig;
   }, [leagueAccess]);
+
+  const scoringConfig: ScoringConfig = useMemo(
+    () => ({
+      attendancePoints: leagueAccess?.league.attendancePoints ?? 1,
+      goalPoints: leagueAccess?.league.goalPoints ?? 1,
+      winBonus: leagueAccess?.league.winBonus ?? 5
+    }),
+    [leagueAccess]
+  );
 
   useEffect(() => {
     if (!leagueAccess) {
@@ -389,7 +400,7 @@ function PageContent() {
   const handleSaveSession = async () => {
     if (!apiConfig) return;
     setSaveState({ saving: true, error: null });
-    const { payload, teamScores, winner } = buildWeeklyPoints(gameState.gamePlayers);
+    const { payload, teamScores, winner } = buildWeeklyPoints(gameState.gamePlayers, scoringConfig);
 
     const response = await fetch(apiConfig.sessionsUrl, {
       method: "POST",
@@ -820,11 +831,19 @@ function PageContent() {
                   backgroundColor: "#f8fafc"
                 }}
               />
-              <button className="button" type="submit" disabled={createLeaguePending || !newLeagueName.trim()}>
-                {createLeaguePending ? "Creating…" : "Add league"}
-              </button>
-            </form>
-          </div>
+          <button className="button" type="submit" disabled={createLeaguePending || !newLeagueName.trim()}>
+            {createLeaguePending ? "Creating…" : "Add league"}
+          </button>
+        </form>
+      </div>
+
+      {leagues.some((league) => league.role === "admin") && !shareToken && (
+        <div style={{ marginTop: "1rem" }}>
+          <Link className="button button-secondary" href="/settings">
+            Adjust scoring rules
+          </Link>
+        </div>
+      )}
 
           {shareToken && publicLeague && (
             <p style={{ marginTop: "1rem", color: "#475569" }}>
@@ -888,6 +907,7 @@ function PageContent() {
               saving={saveState.saving}
               lastError={saveState.error}
               history={history}
+              scoringConfig={scoringConfig}
             />
           )}
 

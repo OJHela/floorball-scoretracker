@@ -18,7 +18,10 @@ export async function GET(request: Request) {
         leagues (
           id,
           name,
-          public_token
+          public_token,
+          attendance_points,
+          goal_points,
+          win_bonus
         )
       `
     )
@@ -37,7 +40,10 @@ export async function GET(request: Request) {
           id: entry.leagues.id,
           name: entry.leagues.name,
           publicToken: entry.leagues.public_token,
-          role: entry.role ?? "member"
+          role: entry.role ?? "member",
+          attendancePoints: entry.leagues.attendance_points ?? 1,
+          goalPoints: entry.leagues.goal_points ?? 1,
+          winBonus: entry.leagues.win_bonus ?? 5
         };
         return [league];
       }) ?? [];
@@ -66,7 +72,7 @@ export async function POST(request: Request) {
       name,
       owner_user_id: userId
     })
-    .select("id, name, public_token")
+    .select("id, name, public_token, attendance_points, goal_points, win_bonus")
     .single();
 
   if (leagueError || !league) {
@@ -88,7 +94,10 @@ export async function POST(request: Request) {
       id: league.id,
       name: league.name,
       publicToken: league.public_token,
-      role: "admin"
+      role: "admin",
+      attendancePoints: league.attendance_points ?? 1,
+      goalPoints: league.goal_points ?? 1,
+      winBonus: league.win_bonus ?? 5
     } satisfies League
   });
 }
