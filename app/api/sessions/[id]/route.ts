@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireLeagueAdmin } from "../../../../../lib/leagueAccess";
-import { getSupabaseServerClient } from "../../../../../lib/supabaseServer";
+import { requireLeagueAdmin } from "../../../../lib/leagueAccess";
+import { getSupabaseServerClient } from "../../../../lib/supabaseServer";
 
 type Params = {
   params: {
