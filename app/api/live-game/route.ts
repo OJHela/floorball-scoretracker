@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { emptyLiveGameState, type LiveGameState } from "../../../types";
+import { emptyLiveGameState, type LiveGameState, type TeamSide } from "../../../types";
 import { ensureLeagueMembership, resolveLeagueIdFromToken } from "../../../lib/leagueAccess";
 import { getSupabaseServerClient } from "../../../lib/supabaseServer";
 
@@ -39,8 +39,8 @@ function sanitizeLiveGameState(state: LiveGameState | null | undefined): LiveGam
   const gamePlayers = Array.isArray(state.gamePlayers)
     ? state.gamePlayers.map((player: any) => ({
         id: String(player.id),
-        name: player.name ?? "",
-        team: player.team === "B" ? "B" : "A",
+        name: typeof player.name === "string" ? player.name : "",
+        team: (player.team === "B" ? "B" : "A") as TeamSide,
         goals: typeof player.goals === "number" ? Math.max(0, player.goals) : 0,
         assists: typeof player.assists === "number" ? Math.max(0, player.assists) : 0
       }))

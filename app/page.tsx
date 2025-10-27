@@ -343,7 +343,8 @@ function PageContent() {
           filter: `league_id=eq.${leagueAccess.league.id}`
         },
         (payload) => {
-          const state = (payload.new?.state ?? null) as LiveGameState | null;
+          const raw = (payload.new as { state?: unknown } | null) ?? null;
+          const state = raw?.state ? (raw.state as LiveGameState) : null;
           if (state) {
             applyRemoteState(state);
           } else if (payload.eventType === "DELETE") {
