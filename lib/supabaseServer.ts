@@ -12,5 +12,7 @@ if (!supabaseServiceKey) {
 }
 
 export function getSupabaseServerClient() {
-  return createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
+  return createClient(supabaseUrl as string, supabaseServiceKey as string, {
+    auth: { persistSession: false }
+  });
 }
