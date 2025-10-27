@@ -110,8 +110,15 @@ function PageContent() {
       return;
     }
 
-    if (typeof window === "undefined") return;
-    const origin = window.location.origin;
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const origin =
+      envUrl && envUrl.length > 0
+        ? envUrl.replace(/\/$/, "")
+        : typeof window !== "undefined"
+        ? window.location.origin
+        : "";
+
+    if (!origin) return;
     setShareUrl(`${origin}?token=${leagueAccess.league.publicToken}`);
   }, [leagueAccess]);
 
