@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 
 type SupabaseContextValue = {
@@ -25,10 +25,10 @@ export function SupabaseProvider({ children, supabaseUrl, supabaseAnonKey }: Sup
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     setSession(data.session ?? null);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     let mounted = true;
@@ -63,7 +63,7 @@ export function SupabaseProvider({ children, supabaseUrl, supabaseAnonKey }: Sup
       sessionLoading,
       refreshSession
     }),
-    [session, sessionLoading, supabase]
+    [refreshSession, session, sessionLoading, supabase]
   );
 
   return <SupabaseContext.Provider value={value}>{children}</SupabaseContext.Provider>;

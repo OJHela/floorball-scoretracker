@@ -20,8 +20,8 @@ async function resolveLeagueContext(request: Request): Promise<LeagueContext | N
 
   if (publicToken) {
     const result = await resolveLeagueIdFromToken(publicToken);
-    if ("error" in result) {
-      return result.error;
+    if (result.kind === "error") {
+      return result.response;
     }
     return { leagueId: result.leagueId, access: "public" };
   }

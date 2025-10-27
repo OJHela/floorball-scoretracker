@@ -41,8 +41,8 @@ async function resolveLeagueForPlayer(request: Request, playerId: string) {
 
   if (publicToken) {
     const result = await resolveLeagueIdFromToken(publicToken);
-    if ("error" in result) {
-      return { error: result.error };
+    if (result.kind === "error") {
+      return { error: result.response };
     }
 
     if (result.leagueId !== playerRow.league_id) {

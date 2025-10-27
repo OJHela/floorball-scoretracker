@@ -46,7 +46,11 @@ export async function ensureLeagueMembership(request: Request, leagueId: string)
   return null;
 }
 
-export async function resolveLeagueIdFromToken(publicToken: string) {
+export type LeagueTokenLookupResult =
+  | { kind: "ok"; leagueId: string }
+  | { kind: "error"; response: NextResponse };
+
+export async function resolveLeagueIdFromToken(publicToken: string): Promise<LeagueTokenLookupResult> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("leagues")
@@ -55,12 +59,12 @@ export async function resolveLeagueIdFromToken(publicToken: string) {
     .maybeSingle();
 
   if (error) {
-    return { error: NextResponse.json({ error: error.message }, { status: 500 }) };
+    return { kind: "error", response: NextResponse.json({ error: error.message }, { status: 500 }) };
   }
 
   if (!data) {
-    return { error: NextResponse.json({ error: "League not found" }, { status: 404 }) };
+    return { kind: "error", response: NextResponse.json({ error: "League not found" }, { status: 404 }) };
   }
 
-  return { leagueId: data.id };
+  return { kind: "ok", leagueId: data.id };
 }
