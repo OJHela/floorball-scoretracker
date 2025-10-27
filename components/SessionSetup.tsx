@@ -1,36 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { type GamePlayer, type Player, type TeamSide } from "../types";
 
 type SessionSetupProps = {
   roster: Player[];
+  selectedPlayerIds: string[];
+  assignments: Record<string, TeamSide>;
+  onToggleSelection: (playerId: string) => void;
+  onToggleTeam: (playerId: string) => void;
   onStartGame: (players: GamePlayer[]) => void;
   onBack: () => void;
 };
 
-export function SessionSetup({ roster, onStartGame, onBack }: SessionSetupProps) {
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, TeamSide>>({});
-
-  const toggleSelection = (playerId: string) => {
-    setSelectedPlayerIds((current) =>
-      current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
-    );
-
-    setAssignments((current) => {
-      if (current[playerId]) return current;
-      return { ...current, [playerId]: "A" };
-    });
-  };
-
-  const toggleTeam = (playerId: string) => {
-    setAssignments((current) => ({
-      ...current,
-      [playerId]: current[playerId] === "A" ? "B" : "A"
-    }));
-  };
-
+export function SessionSetup({
+  roster,
+  selectedPlayerIds,
+  assignments,
+  onToggleSelection,
+  onToggleTeam,
+  onStartGame,
+  onBack
+}: SessionSetupProps) {
   const canStart = selectedPlayerIds.length >= 2;
 
   const lineup = useMemo<GamePlayer[]>(() => {
@@ -129,7 +120,7 @@ export function SessionSetup({ roster, onStartGame, onBack }: SessionSetupProps)
             >
               <button
                 type="button"
-                onClick={() => toggleSelection(player.id)}
+                onClick={() => onToggleSelection(player.id)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -159,7 +150,7 @@ export function SessionSetup({ roster, onStartGame, onBack }: SessionSetupProps)
                 <button
                   className="button button-secondary"
                   type="button"
-                  onClick={() => toggleTeam(player.id)}
+                  onClick={() => onToggleTeam(player.id)}
                   style={{
                     paddingInline: "1rem",
                     backgroundColor: team === "A" ? "rgba(37, 99, 235, 0.12)" : "rgba(248, 113, 113, 0.12)",

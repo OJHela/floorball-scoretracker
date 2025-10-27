@@ -12,7 +12,7 @@ React (Next.js) MVP for the Floorball score tracking app outlined in `Scoretrack
    ```bash
    cp .env.example .env.local
    ```
-   Fill in `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from **Settings → API** in Supabase.
+   Fill in `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` from **Settings → API** in Supabase. Set `NEXT_PUBLIC_APP_URL` to your production domain (for local dev you can leave it blank).
 3. Enable Supabase email/password auth and disable email confirmations under **Authentication → Providers → Email** (toggle off "Confirm email") so new accounts are active immediately.
 4. Seed the database with the schema below (SQL editor → New query → Run).
 5. Start the dev server:
@@ -71,10 +71,18 @@ create table public.session_players (
   inserted_at timestamptz not null default now()
 );
 
+create table public.live_games (
+  league_id uuid primary key references public.leagues(id) on delete cascade,
+  state jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
 create index players_league_idx on public.players (league_id);
 create index sessions_league_idx on public.sessions (league_id);
 create index session_players_session_idx on public.session_players (session_id);
 create index session_players_player_idx on public.session_players (player_id);
+
+alter publication supabase_realtime add table public.live_games;
 
 -- Upgrade helpers (run only if you already have the older schema)
 -- alter table public.players add column league_id uuid references public.leagues(id) on delete cascade;
@@ -90,6 +98,7 @@ Grant the `anon` role read access and the `service_role` key full access, or con
 - **Roster management** – add, rename, and remove up to 40 players per league.
 - **Weekly setup** – choose attendees and split teams A/B before each session.
 - **Live scoring** – mobile-first scorekeeper with player goal controls and optional game clock.
+- **Live scoring** – mobile-first scorekeeper with player goal controls, optional game clock, and real-time sync so multiple devices can update the same game.
 - **Game summary** – auto-calculates attendance, goals, and winner bonus for weekly points.
 - **Season history & leaderboard** – aggregates all saved sessions per league to show trends and standings.
 

@@ -3,6 +3,8 @@ export type Player = {
   name: string;
 };
 
+export type Stage = "roster" | "setup" | "game" | "summary";
+
 export type TeamSide = "A" | "B";
 
 export type GamePlayer = Player & {
@@ -63,3 +65,23 @@ export type LeagueAccess =
       type: "public";
       league: LeagueSummary;
     };
+
+export type LiveGameState = {
+  stage: Stage;
+  selectedPlayerIds: string[];
+  assignments: Record<string, TeamSide>;
+  gamePlayers: GamePlayer[];
+  secondsElapsed: number;
+  isTimerRunning: boolean;
+  timerOwnerId: string | null;
+};
+
+export const emptyLiveGameState: LiveGameState = {
+  stage: "roster",
+  selectedPlayerIds: [],
+  assignments: {},
+  gamePlayers: [],
+  secondsElapsed: 0,
+  isTimerRunning: false,
+  timerOwnerId: null
+};

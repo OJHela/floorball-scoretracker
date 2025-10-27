@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { calculateTeamScore } from "../lib/scoring";
 import { type GamePlayer } from "../types";
 
@@ -9,6 +9,12 @@ type GameScreenProps = {
   onPlayersChange: (players: GamePlayer[]) => void;
   onEndGame: (players: GamePlayer[]) => void;
   onBack: () => void;
+  secondsElapsed: number;
+  isTimerRunning: boolean;
+  isTimerOwner: boolean;
+  onTimerToggle: () => void;
+  onTimerReset: () => void;
+  onTimerTick: () => void;
 };
 
 function formatClock(seconds: number) {
@@ -19,13 +25,22 @@ function formatClock(seconds: number) {
   return `${mins}:${secs}`;
 }
 
-export function GameScreen({ players, onPlayersChange, onEndGame, onBack }: GameScreenProps) {
-  const [isRunning, setIsRunning] = useState(false);
-  const [secondsElapsed, setSecondsElapsed] = useState(0);
+export function GameScreen({
+  players,
+  onPlayersChange,
+  onEndGame,
+  onBack,
+  secondsElapsed,
+  isTimerRunning,
+  isTimerOwner,
+  onTimerToggle,
+  onTimerReset,
+  onTimerTick
+}: GameScreenProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!isRunning) {
+    if (!isTimerRunning || !isTimerOwner) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
@@ -34,13 +49,13 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack }: Game
     }
 
     intervalRef.current = setInterval(() => {
-      setSecondsElapsed((prev) => prev + 1);
+      onTimerTick();
     }, 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning]);
+  }, [isTimerOwner, isTimerRunning, onTimerTick]);
 
   const adjustGoals = (playerId: string, delta: number) => {
     const updated = players.map((player) =>
@@ -132,18 +147,15 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack }: Game
             <button
               className="button"
               type="button"
-              onClick={() => setIsRunning((current) => !current)}
+              onClick={onTimerToggle}
               style={{ flex: 1, paddingInline: 0, backgroundColor: "#38bdf8" }}
             >
-              {isRunning ? "Pause" : "Start"}
+              {isTimerRunning ? "Pause" : "Start"}
             </button>
             <button
               className="button button-secondary"
               type="button"
-              onClick={() => {
-                setIsRunning(false);
-                setSecondsElapsed(0);
-              }}
+              onClick={onTimerReset}
               style={{ flex: 1, paddingInline: 0 }}
             >
               Reset
