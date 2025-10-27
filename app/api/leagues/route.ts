@@ -31,16 +31,16 @@ export async function GET(request: Request) {
 
   const leagues: League[] =
     data
-      ?.map((entry: any) => {
-        if (!entry.leagues) return null;
-        return {
+      ?.flatMap((entry: any) => {
+        if (!entry.leagues) return [];
+        const league: League = {
           id: entry.leagues.id,
           name: entry.leagues.name,
           publicToken: entry.leagues.public_token,
           role: entry.role ?? "member"
-        } satisfies League;
-      })
-      .filter(Boolean) ?? [];
+        };
+        return [league];
+      }) ?? [];
 
   return NextResponse.json({ leagues });
 }
