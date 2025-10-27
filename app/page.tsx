@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { GameScreen } from "../components/GameScreen";
 import { GameSummary } from "../components/GameSummary";
@@ -27,7 +27,7 @@ type LeagueApiConfig = {
   headers?: Record<string, string>;
 };
 
-export default function Page() {
+function PageContent() {
   const searchParams = useSearchParams();
   const shareToken = searchParams.get("token");
 
@@ -687,5 +687,19 @@ export default function Page() {
         </section>
       )}
     </main>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense
+      fallback={
+        <main className="app-shell">
+          <p style={{ color: "#475569" }}>Loading league data…</p>
+        </main>
+      }
+    >
+      <PageContent />
+    </Suspense>
   );
 }
