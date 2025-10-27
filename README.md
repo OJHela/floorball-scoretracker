@@ -114,5 +114,6 @@ Grant the `anon` role read access and the `service_role` key full access, or con
 - **Season history & leaderboard** – aggregates all saved sessions per league to show trends and standings.
 - **Scoring rules** – league owners can adjust attendance, goal, assist, and win-bonus points per league.
 - **Session management** – admins can delete saved games directly from the history view.
+- **Offline fallback** – the live scoreboard keeps running locally when the network drops and syncs once you reconnect.
 
 The UI is responsive and uses the API routes under `app/api` to communicate with Supabase. Use them as reference points if you need to integrate the MVP with other services.

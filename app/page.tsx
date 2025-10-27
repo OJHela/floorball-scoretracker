@@ -74,6 +74,9 @@ function PageContent() {
   const [shareUrl, setShareUrl] = useState("");
   const [shareCopyMessage, setShareCopyMessage] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
 
   const updatingFromRemoteRef = useRef(false);
   const persistQueueRef = useRef<LiveGameState | null>(null);
@@ -259,6 +262,18 @@ function PageContent() {
     loadHistory().catch(() => setHistoryLoading(false));
   }, [apiConfig, loadHistory]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const applyRemoteState = useCallback((state: LiveGameState) => {
     updatingFromRemoteRef.current = true;
     setGameState({
@@ -272,6 +287,10 @@ function PageContent() {
   const persistState = useCallback(
     (state: LiveGameState) => {
       if (!apiConfig?.liveGameUrl) return;
+      if (!isOnline) {
+        persistQueueRef.current = state;
+        return;
+      }
       fetch(apiConfig.liveGameUrl, {
         method: "PUT",
         headers: {
@@ -279,9 +298,11 @@ function PageContent() {
           ...(apiConfig.headers ?? {})
         },
         body: JSON.stringify({ state })
-      }).catch(() => undefined);
+      }).catch(() => {
+        persistQueueRef.current = state;
+      });
     },
-    [apiConfig]
+    [apiConfig, isOnline]
   );
 
   const scheduleLocalUpdate = useCallback(
@@ -294,6 +315,14 @@ function PageContent() {
     },
     []
   );
+
+  useEffect(() => {
+    if (!isOnline) return;
+    if (!persistQueueRef.current) return;
+    const queued = persistQueueRef.current;
+    persistQueueRef.current = null;
+    persistState(queued);
+  }, [isOnline, persistState]);
 
   useEffect(() => {
     if (updatingFromRemoteRef.current) {
@@ -309,7 +338,7 @@ function PageContent() {
   }, [gameState, persistState]);
 
   useEffect(() => {
-    if (!apiConfig?.liveGameUrl) return;
+    if (!apiConfig?.liveGameUrl || !isOnline) return;
     let cancelled = false;
 
     fetch(apiConfig.liveGameUrl, {
@@ -328,10 +357,10 @@ function PageContent() {
     return () => {
       cancelled = true;
     };
-  }, [apiConfig, applyRemoteState]);
+  }, [apiConfig, applyRemoteState, isOnline]);
 
   useEffect(() => {
-    if (!leagueAccess) return;
+    if (!leagueAccess || !isOnline) return;
 
     const channel = supabase
       .channel(`live-game-${leagueAccess.league.id}`)
@@ -358,7 +387,7 @@ function PageContent() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [applyRemoteState, leagueAccess, supabase]);
+  }, [applyRemoteState, leagueAccess, supabase, isOnline]);
 
   const canAdvance = useMemo(() => roster.length >= 2, [roster.length]);
   const canManageSessions = leagueAccess?.type === "authenticated" && leagueAccess.league.role === "admin";
@@ -691,6 +720,14 @@ function PageContent() {
           )}
         </div>
       </header>
+
+      {!isOnline && (
+        <section className="card" style={{ marginBottom: "1rem", borderColor: "#f97316" }}>
+          <p style={{ margin: 0, color: "#f97316", fontWeight: 600 }}>
+            Offline mode – changes will sync when you reconnect.
+          </p>
+        </section>
+      )}
 
       {shareToken && publicLeagueLoading && (
         <section className="card">
