@@ -80,6 +80,7 @@ function PageContent() {
 
   const updatingFromRemoteRef = useRef(false);
   const persistQueueRef = useRef<LiveGameState | null>(null);
+  const pendingSessionRef = useRef<GamePlayer[] | null>(null);
   const clientIdRef = useRef<string>("");
   if (!clientIdRef.current) {
     clientIdRef.current =
@@ -427,46 +428,76 @@ function PageContent() {
     [scheduleLocalUpdate]
   );
 
+  const submitSession = useCallback(
+    async (players: GamePlayer[], allowQueue = true) => {
+      if (!apiConfig) return;
+      const snapshot = players.map((player) => ({ ...player }));
+      const { payload, teamScores, winner } = buildWeeklyPoints(snapshot, scoringConfig);
+
+      if (!isOnline) {
+        if (allowQueue) {
+          pendingSessionRef.current = snapshot;
+          setSaveState({ saving: false, error: "Saved locally. Will sync when back online." });
+        }
+        return;
+      }
+
+      setSaveState({ saving: true, error: null });
+      try {
+        const response = await fetch(apiConfig.sessionsUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(apiConfig.headers ?? {}) },
+          body: JSON.stringify({
+            teamAScore: teamScores.A,
+            teamBScore: teamScores.B,
+            winner,
+            players: payload
+          })
+        });
+
+        if (!response.ok) {
+          const message = (await response.json().catch(() => ({})))?.error ?? "Failed to save session";
+          throw new Error(message);
+        }
+
+        await loadHistory();
+        pendingSessionRef.current = null;
+        setSaveState({ saving: false, error: null });
+      } catch (error) {
+        if (allowQueue) pendingSessionRef.current = snapshot;
+        const message = error instanceof Error ? error.message : "Failed to save session";
+        setSaveState({ saving: false, error: message });
+      }
+    },
+    [apiConfig, isOnline, loadHistory, scoringConfig]
+  );
+
   const handleEndGame = useCallback(
     (players: GamePlayer[]) => {
+      const finalizedPlayers = players.map((player) => ({
+        ...player,
+        assists: player.assists ?? 0
+      }));
+
       scheduleLocalUpdate((prev) => ({
         ...prev,
         stage: "summary",
-        gamePlayers: players.map((player) => ({
-          ...player,
-          assists: player.assists ?? 0
-        })),
+        gamePlayers: finalizedPlayers,
         alarmAtSeconds: null,
         alarmAcknowledged: false
       }));
+      submitSession(finalizedPlayers);
     },
-    [scheduleLocalUpdate]
+    [scheduleLocalUpdate, submitSession]
   );
 
-  const handleSaveSession = async () => {
-    if (!apiConfig) return;
-    setSaveState({ saving: true, error: null });
-    const { payload, teamScores, winner } = buildWeeklyPoints(gameState.gamePlayers, scoringConfig);
-
-    const response = await fetch(apiConfig.sessionsUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(apiConfig.headers ?? {}) },
-      body: JSON.stringify({
-        teamAScore: teamScores.A,
-        teamBScore: teamScores.B,
-        winner,
-        players: payload
-      })
-    });
-
-    if (!response.ok) {
-      setSaveState({ saving: false, error: "Failed to save session" });
-      return;
-    }
-
-    await loadHistory();
-    setSaveState({ saving: false, error: null });
-  };
+  useEffect(() => {
+    if (!isOnline) return;
+    if (!pendingSessionRef.current) return;
+    const snapshot = pendingSessionRef.current;
+    pendingSessionRef.current = null;
+    submitSession(snapshot, false);
+  }, [isOnline, submitSession]);
 
   const resetToRoster = useCallback(() => {
     scheduleLocalUpdate(() => ({ ...emptyLiveGameState }));
@@ -951,13 +982,12 @@ function PageContent() {
 
       {gameState.stage === "summary" && (
         <GameSummary
-              players={gameState.gamePlayers}
-              onSave={handleSaveSession}
-              onReset={resetToRoster}
-              saving={saveState.saving}
-              lastError={saveState.error}
-              history={history}
-              scoringConfig={scoringConfig}
+          players={gameState.gamePlayers}
+          onReset={resetToRoster}
+          saving={saveState.saving}
+          lastError={saveState.error}
+          history={history}
+          scoringConfig={scoringConfig}
             />
           )}
 

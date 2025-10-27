@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { buildWeeklyPoints } from "../lib/scoring";
 import { type GamePlayer, type SavedSession, type ScoringConfig } from "../types";
 
 type GameSummaryProps = {
   players: GamePlayer[];
-  onSave: (notes?: string) => Promise<void>;
   onReset: () => void;
   saving: boolean;
   lastError: string | null;
@@ -16,15 +15,12 @@ type GameSummaryProps = {
 
 export function GameSummary({
   players,
-  onSave,
   onReset,
   saving,
   lastError,
   history,
   scoringConfig
 }: GameSummaryProps) {
-  const [savingSuccess, setSavingSuccess] = useState(false);
-
   const { payload, teamScores, winner } = useMemo(
     () => buildWeeklyPoints(players, scoringConfig),
     [players, scoringConfig]
@@ -43,13 +39,6 @@ export function GameSummary({
       ? "Tie game"
       : `Team ${winner} wins by ${Math.abs(teamScores.A - teamScores.B)} goals`;
 
-  const handleSave = async () => {
-    setSavingSuccess(false);
-    await onSave();
-    setSavingSuccess(true);
-    setTimeout(() => setSavingSuccess(false), 4000);
-  };
-
   return (
     <section className="card" aria-labelledby="summary-heading">
       <header
@@ -66,9 +55,6 @@ export function GameSummary({
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button className="button button-secondary" type="button" onClick={onReset}>
             Back to start
-          </button>
-          <button className="button" type="button" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save Session"}
           </button>
         </div>
       </header>
@@ -155,14 +141,13 @@ export function GameSummary({
         </table>
       </div>
 
-      {lastError && (
-        <p style={{ color: "#dc2626", marginTop: "1rem" }} role="alert">
-          {lastError}
-        </p>
-      )}
-      {savingSuccess && !lastError && (
-        <p style={{ color: "#16a34a", marginTop: "1rem" }}>Session saved. Nice work!</p>
-      )}
+      <p style={{ marginTop: "1rem" }}>
+        {saving
+          ? "Saving session…"
+          : lastError
+          ? `Save pending: ${lastError}`
+          : "Session autosaved."}
+      </p>
 
       <aside style={{ marginTop: "2rem" }}>
         <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>Recent Weeks</h3>

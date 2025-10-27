@@ -115,5 +115,6 @@ Grant the `anon` role read access and the `service_role` key full access, or con
 - **Scoring rules** – league owners can adjust attendance, goal, assist, and win-bonus points per league.
 - **Session management** – admins can delete saved games directly from the history view.
 - **Offline fallback** – the live scoreboard keeps running locally when the network drops and syncs once you reconnect.
+- **Auto-save** – sessions are saved the moment a game ends (queued locally if you’re offline).
 
 The UI is responsive and uses the API routes under `app/api` to communicate with Supabase. Use them as reference points if you need to integrate the MVP with other services.
