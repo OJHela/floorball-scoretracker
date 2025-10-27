@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { calculateTeamScore } from "../lib/scoring";
 import { type GamePlayer } from "../types";
 
@@ -9,73 +9,10 @@ type GameScreenProps = {
   onPlayersChange: (players: GamePlayer[]) => void;
   onEndGame: (players: GamePlayer[]) => void;
   onBack: () => void;
-  secondsElapsed: number;
-  isTimerRunning: boolean;
-  isTimerOwner: boolean;
-  onTimerToggle: () => void;
-  onTimerReset: () => void;
-  onTimerTick: () => void;
   enableAssists: boolean;
-  alarmAtSeconds: number | null;
-  alarmAcknowledged: boolean;
-  onSetAlarm: (seconds: number) => void;
-  onClearAlarm: () => void;
 };
 
-function formatClock(seconds: number) {
-  const mins = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const secs = (seconds % 60).toString().padStart(2, "0");
-  return `${mins}:${secs}`;
-}
-
-export function GameScreen({
-  players,
-  onPlayersChange,
-  onEndGame,
-  onBack,
-  secondsElapsed,
-  isTimerRunning,
-  isTimerOwner,
-  onTimerToggle,
-  onTimerReset,
-  onTimerTick,
-  enableAssists,
-  alarmAtSeconds,
-  alarmAcknowledged,
-  onSetAlarm,
-  onClearAlarm
-}: GameScreenProps) {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [alarmMinutesInput, setAlarmMinutesInput] = useState("");
-
-  useEffect(() => {
-    if (alarmAtSeconds !== null) {
-      setAlarmMinutesInput((alarmAtSeconds / 60).toFixed(1));
-    } else {
-      setAlarmMinutesInput("");
-    }
-  }, [alarmAtSeconds]);
-
-  useEffect(() => {
-    if (!isTimerRunning || !isTimerOwner) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      intervalRef.current = null;
-      return;
-    }
-
-    intervalRef.current = setInterval(() => {
-      onTimerTick();
-    }, 1000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isTimerOwner, isTimerRunning, onTimerTick]);
-
+export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enableAssists }: GameScreenProps) {
   const adjustGoals = (playerId: string, delta: number) => {
     const updated = players.map((player) =>
       player.id === playerId ? { ...player, goals: Math.max(0, player.goals + delta) } : player
@@ -95,18 +32,6 @@ export function GameScreen({
 
   const handleEndGame = () => {
     onEndGame(players);
-  };
-
-  const handleAlarmSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const value = Number(alarmMinutesInput);
-    if (Number.isNaN(value) || value < 0) return;
-    const seconds = Math.round(value * 60);
-    if (seconds <= 0) {
-      onClearAlarm();
-    } else {
-      onSetAlarm(seconds);
-    }
   };
 
   return (
@@ -163,83 +88,6 @@ export function GameScreen({
             Team B
           </p>
           <p style={{ margin: "0.25rem 0 0", fontSize: "2.5rem", fontWeight: 700 }}>{teamBScore}</p>
-        </div>
-        <div
-          style={{
-            borderRadius: "16px",
-            padding: "1rem",
-            background: "#0f172a",
-            color: "white",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between"
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.2em" }}>
-            Game Clock
-          </p>
-          <p style={{ margin: "0.25rem 0 0", fontSize: "2.25rem", fontWeight: 700 }}>
-            {formatClock(secondsElapsed)}
-          </p>
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <button
-              className="button"
-              type="button"
-              onClick={onTimerToggle}
-              style={{ flex: 1, paddingInline: 0, backgroundColor: "#38bdf8" }}
-            >
-              {isTimerRunning ? "Pause" : "Start"}
-            </button>
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={onTimerReset}
-              style={{ flex: 1, paddingInline: 0 }}
-            >
-              Reset
-            </button>
-          </div>
-          <form onSubmit={handleAlarmSubmit} style={{ marginTop: "0.75rem", display: "grid", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>
-              Alarm (minutes)
-            </label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <input
-                type="number"
-                min={0}
-                step={0.5}
-                value={alarmMinutesInput}
-                onChange={(event) => setAlarmMinutesInput(event.target.value)}
-                placeholder="e.g. 15"
-                style={{
-                  flex: 1,
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  backgroundColor: "rgba(15, 23, 42, 0.6)",
-                  color: "white"
-                }}
-              />
-              <button className="button" type="submit" style={{ paddingInline: "1rem" }}>
-                Set
-              </button>
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={onClearAlarm}
-                disabled={alarmAtSeconds === null}
-                style={{ paddingInline: "1rem" }}
-              >
-                Clear
-              </button>
-            </div>
-            {alarmAtSeconds !== null && (
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(255,255,255,0.7)" }}>
-                Alarm at {formatClock(alarmAtSeconds)}
-                {alarmAcknowledged ? " (done)" : ""}
-              </p>
-            )}
-          </form>
         </div>
       </div>
 

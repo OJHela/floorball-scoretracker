@@ -74,7 +74,6 @@ function PageContent() {
   const [shareUrl, setShareUrl] = useState("");
   const [shareCopyMessage, setShareCopyMessage] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
 
   const updatingFromRemoteRef = useRef(false);
   const persistQueueRef = useRef<LiveGameState | null>(null);
@@ -296,35 +295,6 @@ function PageContent() {
     []
   );
 
-  const playAlarm = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioCtx();
-      }
-      const ctx = audioContextRef.current;
-      if (!ctx) return;
-      if (ctx.state === "suspended") {
-        void ctx.resume();
-      }
-      const now = ctx.currentTime;
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(880, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      oscillator.connect(gain).connect(ctx.destination);
-      gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
-      gain.gain.linearRampToValueAtTime(0.0001, now + 1);
-      oscillator.start(now);
-      oscillator.stop(now + 1);
-    } catch (error) {
-      console.error("Failed to play alarm", error);
-    }
-  }, []);
-
   useEffect(() => {
     if (updatingFromRemoteRef.current) {
       updatingFromRemoteRef.current = false;
@@ -389,13 +359,6 @@ function PageContent() {
       supabase.removeChannel(channel);
     };
   }, [applyRemoteState, leagueAccess, supabase]);
-
-  useEffect(() => {
-    return () => {
-      audioContextRef.current?.close?.();
-      audioContextRef.current = null;
-    };
-  }, []);
 
   const canAdvance = useMemo(() => roster.length >= 2, [roster.length]);
   const canManageSessions = leagueAccess?.type === "authenticated" && leagueAccess.league.role === "admin";
@@ -480,27 +443,6 @@ function PageContent() {
     scheduleLocalUpdate(() => ({ ...emptyLiveGameState }));
   }, [scheduleLocalUpdate]);
 
-  const handleSetAlarmSeconds = useCallback(
-    (seconds: number) => {
-      scheduleLocalUpdate((prev) => ({
-        ...prev,
-        alarmAtSeconds: seconds,
-        alarmAcknowledged: false
-      }));
-    },
-    [scheduleLocalUpdate]
-  );
-
-  const handleClearAlarm = useCallback(() => {
-    scheduleLocalUpdate((prev) => ({
-      ...prev,
-      alarmAtSeconds: null,
-      alarmAcknowledged: false
-    }));
-    audioContextRef.current?.close?.();
-    audioContextRef.current = null;
-  }, [scheduleLocalUpdate]);
-
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       if (!apiConfig) return;
@@ -575,48 +517,6 @@ function PageContent() {
   const goToRoster = useCallback(() => {
     scheduleLocalUpdate((prev) => ({ ...prev, stage: "roster", alarmAcknowledged: false }));
   }, [scheduleLocalUpdate]);
-
-  const timerOwnerId = gameState.timerOwnerId;
-  const isTimerOwner = timerOwnerId ? timerOwnerId === clientIdRef.current : false;
-
-  const handleTimerToggle = useCallback(() => {
-    scheduleLocalUpdate((prev) => {
-      if (prev.isTimerRunning) {
-        return { ...prev, isTimerRunning: false, timerOwnerId: null };
-      }
-      return { ...prev, isTimerRunning: true, timerOwnerId: clientIdRef.current };
-    });
-  }, [scheduleLocalUpdate]);
-
-  const handleTimerReset = useCallback(() => {
-    scheduleLocalUpdate((prev) => ({
-      ...prev,
-      secondsElapsed: 0,
-      isTimerRunning: false,
-      timerOwnerId: null,
-      alarmAcknowledged: false
-    }));
-  }, [scheduleLocalUpdate]);
-
-  const handleTimerTick = useCallback(() => {
-    scheduleLocalUpdate((prev) => ({
-      ...prev,
-      secondsElapsed: prev.secondsElapsed + 1
-    }));
-  }, [scheduleLocalUpdate]);
-
-  useEffect(() => {
-    if (gameState.stage !== "game") return;
-    if (gameState.alarmAtSeconds === null) return;
-    if (gameState.alarmAcknowledged) return;
-    if (gameState.secondsElapsed < gameState.alarmAtSeconds) return;
-
-    playAlarm();
-    scheduleLocalUpdate((prev) => ({
-      ...prev,
-      alarmAcknowledged: true
-    }));
-  }, [gameState.stage, gameState.secondsElapsed, gameState.alarmAtSeconds, gameState.alarmAcknowledged, playAlarm, scheduleLocalUpdate]);
 
   const handleCreateLeague = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1003,22 +903,12 @@ function PageContent() {
           )}
 
           {gameState.stage === "game" && (
-            <GameScreen
-              players={gameState.gamePlayers}
-              onPlayersChange={handlePlayersChange}
-              onEndGame={handleEndGame}
-              onBack={goToSetup}
-              secondsElapsed={gameState.secondsElapsed}
-              isTimerRunning={gameState.isTimerRunning}
-              isTimerOwner={isTimerOwner}
-          onTimerToggle={handleTimerToggle}
-          onTimerReset={handleTimerReset}
-          onTimerTick={handleTimerTick}
+        <GameScreen
+          players={gameState.gamePlayers}
+          onPlayersChange={handlePlayersChange}
+          onEndGame={handleEndGame}
+          onBack={goToSetup}
           enableAssists={scoringConfig.enableAssists}
-          alarmAtSeconds={gameState.alarmAtSeconds}
-          alarmAcknowledged={gameState.alarmAcknowledged}
-          onSetAlarm={handleSetAlarmSeconds}
-          onClearAlarm={handleClearAlarm}
         />
       )}
 
