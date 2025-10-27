@@ -73,6 +73,8 @@ function PageContent() {
   const [authPending, setAuthPending] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [shareCopyMessage, setShareCopyMessage] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const updatingFromRemoteRef = useRef(false);
   const persistQueueRef = useRef<LiveGameState | null>(null);
@@ -294,6 +296,35 @@ function PageContent() {
     []
   );
 
+  const playAlarm = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioCtx();
+      }
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+      if (ctx.state === "suspended") {
+        void ctx.resume();
+      }
+      const now = ctx.currentTime;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      oscillator.connect(gain).connect(ctx.destination);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0.0001, now + 1);
+      oscillator.start(now);
+      oscillator.stop(now + 1);
+    } catch (error) {
+      console.error("Failed to play alarm", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (updatingFromRemoteRef.current) {
       updatingFromRemoteRef.current = false;
@@ -359,7 +390,15 @@ function PageContent() {
     };
   }, [applyRemoteState, leagueAccess, supabase]);
 
+  useEffect(() => {
+    return () => {
+      audioContextRef.current?.close?.();
+      audioContextRef.current = null;
+    };
+  }, []);
+
   const canAdvance = useMemo(() => roster.length >= 2, [roster.length]);
+  const canManageSessions = leagueAccess?.type === "authenticated" && leagueAccess.league.role === "admin";
 
   const handleRosterLoaded = useCallback((players: Player[]) => {
     setRoster(players);
@@ -376,7 +415,8 @@ function PageContent() {
         })),
         secondsElapsed: 0,
         isTimerRunning: false,
-        timerOwnerId: null
+        timerOwnerId: null,
+        alarmAcknowledged: false
       }));
     },
     [scheduleLocalUpdate]
@@ -403,7 +443,9 @@ function PageContent() {
         gamePlayers: players.map((player) => ({
           ...player,
           assists: player.assists ?? 0
-        }))
+        })),
+        alarmAtSeconds: null,
+        alarmAcknowledged: false
       }));
     },
     [scheduleLocalUpdate]
@@ -437,6 +479,56 @@ function PageContent() {
   const resetToRoster = useCallback(() => {
     scheduleLocalUpdate(() => ({ ...emptyLiveGameState }));
   }, [scheduleLocalUpdate]);
+
+  const handleSetAlarmSeconds = useCallback(
+    (seconds: number) => {
+      scheduleLocalUpdate((prev) => ({
+        ...prev,
+        alarmAtSeconds: seconds,
+        alarmAcknowledged: false
+      }));
+    },
+    [scheduleLocalUpdate]
+  );
+
+  const handleClearAlarm = useCallback(() => {
+    scheduleLocalUpdate((prev) => ({
+      ...prev,
+      alarmAtSeconds: null,
+      alarmAcknowledged: false
+    }));
+    audioContextRef.current?.close?.();
+    audioContextRef.current = null;
+  }, [scheduleLocalUpdate]);
+
+  const handleDeleteSession = useCallback(
+    async (sessionId: string) => {
+      if (!apiConfig) return;
+      if (leagueAccess?.type !== "authenticated") return;
+      if (!window.confirm("Remove this session? This cannot be undone.")) return;
+
+      setDeletingSessionId(sessionId);
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}?leagueId=${leagueAccess.league.id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${leagueAccess.accessToken}`
+          }
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          alert(payload.error ?? "Failed to delete session");
+          return;
+        }
+
+        setHistory((current) => current.filter((session) => session.id !== sessionId));
+      } finally {
+        setDeletingSessionId(null);
+      }
+    },
+    [apiConfig, leagueAccess]
+  );
 
   const toggleSelection = useCallback(
     (playerId: string) => {
@@ -477,11 +569,11 @@ function PageContent() {
   );
 
   const goToSetup = useCallback(() => {
-    scheduleLocalUpdate((prev) => ({ ...prev, stage: "setup" }));
+    scheduleLocalUpdate((prev) => ({ ...prev, stage: "setup", alarmAcknowledged: false }));
   }, [scheduleLocalUpdate]);
 
   const goToRoster = useCallback(() => {
-    scheduleLocalUpdate((prev) => ({ ...prev, stage: "roster" }));
+    scheduleLocalUpdate((prev) => ({ ...prev, stage: "roster", alarmAcknowledged: false }));
   }, [scheduleLocalUpdate]);
 
   const timerOwnerId = gameState.timerOwnerId;
@@ -501,7 +593,8 @@ function PageContent() {
       ...prev,
       secondsElapsed: 0,
       isTimerRunning: false,
-      timerOwnerId: null
+      timerOwnerId: null,
+      alarmAcknowledged: false
     }));
   }, [scheduleLocalUpdate]);
 
@@ -511,6 +604,19 @@ function PageContent() {
       secondsElapsed: prev.secondsElapsed + 1
     }));
   }, [scheduleLocalUpdate]);
+
+  useEffect(() => {
+    if (gameState.stage !== "game") return;
+    if (gameState.alarmAtSeconds === null) return;
+    if (gameState.alarmAcknowledged) return;
+    if (gameState.secondsElapsed < gameState.alarmAtSeconds) return;
+
+    playAlarm();
+    scheduleLocalUpdate((prev) => ({
+      ...prev,
+      alarmAcknowledged: true
+    }));
+  }, [gameState.stage, gameState.secondsElapsed, gameState.alarmAtSeconds, gameState.alarmAcknowledged, playAlarm, scheduleLocalUpdate]);
 
   const handleCreateLeague = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -909,6 +1015,10 @@ function PageContent() {
           onTimerReset={handleTimerReset}
           onTimerTick={handleTimerTick}
           enableAssists={scoringConfig.enableAssists}
+          alarmAtSeconds={gameState.alarmAtSeconds}
+          alarmAcknowledged={gameState.alarmAcknowledged}
+          onSetAlarm={handleSetAlarmSeconds}
+          onClearAlarm={handleClearAlarm}
         />
       )}
 
@@ -924,7 +1034,14 @@ function PageContent() {
             />
           )}
 
-          <HistoryLeaderboard history={history} onRefresh={loadHistory} loading={historyLoading} />
+      <HistoryLeaderboard
+        history={history}
+        onRefresh={loadHistory}
+        loading={historyLoading}
+        canDelete={Boolean(canManageSessions)}
+        onDeleteSession={canManageSessions ? handleDeleteSession : undefined}
+        deletingId={deletingSessionId}
+      />
         </>
       )}
 

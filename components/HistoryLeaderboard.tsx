@@ -7,9 +7,19 @@ type HistoryLeaderboardProps = {
   history: SavedSession[];
   onRefresh: () => void;
   loading: boolean;
+  canDelete?: boolean;
+  onDeleteSession?: (sessionId: string) => void;
+  deletingId?: string | null;
 };
 
-export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeaderboardProps) {
+export function HistoryLeaderboard({
+  history,
+  onRefresh,
+  loading,
+  canDelete = false,
+  onDeleteSession,
+  deletingId
+}: HistoryLeaderboardProps) {
   const leaderboard = useMemo(() => {
     const totals = new Map<
       string,
@@ -131,6 +141,19 @@ export function HistoryLeaderboard({ history, onRefresh, loading }: HistoryLeade
                     </span>
                   </div>
                   <p style={{ margin: "0.25rem 0 0", color: "#475569" }}>Result: {session.winner}</p>
+                  {canDelete && onDeleteSession && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() => onDeleteSession(session.id)}
+                        disabled={deletingId === session.id}
+                        style={{ color: "#dc2626", borderColor: "#dc2626" }}
+                      >
+                        {deletingId === session.id ? "Deleting…" : "Delete session"}
+                      </button>
+                    </div>
+                  )}
 
                   <details style={{ marginTop: "0.5rem" }}>
                     <summary style={{ cursor: "pointer", color: "#2563eb", fontWeight: 600 }}>

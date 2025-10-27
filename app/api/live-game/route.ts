@@ -56,7 +56,9 @@ function sanitizeLiveGameState(state: LiveGameState | null | undefined): LiveGam
     gamePlayers,
     secondsElapsed,
     isTimerRunning,
-    timerOwnerId
+    timerOwnerId,
+    alarmAtSeconds: typeof state.alarmAtSeconds === "number" ? Math.max(0, state.alarmAtSeconds) : null,
+    alarmAcknowledged: Boolean(state.alarmAcknowledged)
   };
 }
 

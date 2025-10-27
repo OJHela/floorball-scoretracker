@@ -113,5 +113,7 @@ Grant the `anon` role read access and the `service_role` key full access, or con
 - **Game summary** – auto-calculates attendance, goals, assists, and winner bonus based on league rules.
 - **Season history & leaderboard** – aggregates all saved sessions per league to show trends and standings.
 - **Scoring rules** – league owners can adjust attendance, goal, assist, and win-bonus points per league.
+- **Timer alarm** – set a one-time alarm on the game clock; everyone hears a tone when the target time hits.
+- **Session management** – admins can delete saved games directly from the history view.
 
 The UI is responsive and uses the API routes under `app/api` to communicate with Supabase. Use them as reference points if you need to integrate the MVP with other services.

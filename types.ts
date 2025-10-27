@@ -86,6 +86,8 @@ export type LiveGameState = {
   secondsElapsed: number;
   isTimerRunning: boolean;
   timerOwnerId: string | null;
+  alarmAtSeconds: number | null;
+  alarmAcknowledged: boolean;
 };
 
 export const emptyLiveGameState: LiveGameState = {
@@ -95,7 +97,9 @@ export const emptyLiveGameState: LiveGameState = {
   gamePlayers: [],
   secondsElapsed: 0,
   isTimerRunning: false,
-  timerOwnerId: null
+  timerOwnerId: null,
+  alarmAtSeconds: null,
+  alarmAcknowledged: false
 };
 
 export type ScoringConfig = {
