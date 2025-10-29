@@ -1,34 +1,89 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calculateTeamScore } from "../lib/scoring";
-import { type GamePlayer } from "../types";
+import { type GamePlayer, type GoalEvent, type TeamNames } from "../types";
 
 type GameScreenProps = {
   players: GamePlayer[];
-  onPlayersChange: (players: GamePlayer[]) => void;
+  teamNames: TeamNames;
+  goalEvents: GoalEvent[];
+  onAdjustGoal: (playerId: string, delta: number) => void;
+  onAdjustAssist: (playerId: string, delta: number) => void;
+  onAssignTeam: (playerId: string, team: "A" | "B") => void;
+  onTeamNamesChange: (team: "A" | "B", name: string) => void;
   onEndGame: (players: GamePlayer[]) => void;
   onBack: () => void;
   enableAssists: boolean;
 };
 
-export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enableAssists }: GameScreenProps) {
-  const adjustGoals = (playerId: string, delta: number) => {
-    const updated = players.map((player) =>
-      player.id === playerId ? { ...player, goals: Math.max(0, player.goals + delta) } : player
-    );
-    onPlayersChange(updated);
+export function GameScreen({
+  players,
+  teamNames,
+  goalEvents,
+  onAdjustGoal,
+  onAdjustAssist,
+  onAssignTeam,
+  onTeamNamesChange,
+  onEndGame,
+  onBack,
+  enableAssists
+}: GameScreenProps) {
+  const [editingTeams, setEditingTeams] = useState(false);
+  const [activeNameEdit, setActiveNameEdit] = useState<"A" | "B" | null>(null);
+  const [localTeamNames, setLocalTeamNames] = useState<TeamNames>(teamNames);
+
+  useEffect(() => {
+    if (activeNameEdit !== "A" && teamNames.A !== localTeamNames.A) {
+      setLocalTeamNames((prev) => ({ ...prev, A: teamNames.A }));
+    }
+    if (activeNameEdit !== "B" && teamNames.B !== localTeamNames.B) {
+      setLocalTeamNames((prev) => ({ ...prev, B: teamNames.B }));
+    }
+  }, [teamNames, activeNameEdit, localTeamNames.A, localTeamNames.B]);
+
+  const handleTeamNameChange = (team: "A" | "B", value: string) => {
+    setLocalTeamNames((prev) => ({ ...prev, [team]: value }));
   };
 
-  const adjustAssists = (playerId: string, delta: number) => {
-    const updated = players.map((player) =>
-      player.id === playerId ? { ...player, assists: Math.max(0, player.assists + delta) } : player
-    );
-    onPlayersChange(updated);
+  const commitTeamName = (team: "A" | "B") => {
+    onTeamNamesChange(team, localTeamNames[team]);
   };
 
   const teamAScore = useMemo(() => calculateTeamScore(players, "A"), [players]);
   const teamBScore = useMemo(() => calculateTeamScore(players, "B"), [players]);
+  const resolvedTeamNames = useMemo(
+    () => ({
+      A: localTeamNames.A && localTeamNames.A.trim().length > 0 ? localTeamNames.A : "Team A",
+      B: localTeamNames.B && localTeamNames.B.trim().length > 0 ? localTeamNames.B : "Team B"
+    }),
+    [localTeamNames]
+  );
+
+  const playersByTeam = useMemo(() => {
+    return players.reduce(
+      (acc, player) => {
+        acc[player.team].push(player);
+        return acc;
+      },
+      {
+        A: [] as GamePlayer[],
+        B: [] as GamePlayer[]
+      }
+    );
+  }, [players]);
+
+  const sortedPlayersByTeam = useMemo(() => {
+    return {
+      A: [...playersByTeam.A].sort((first, second) => first.name.localeCompare(second.name)),
+      B: [...playersByTeam.B].sort((first, second) => first.name.localeCompare(second.name))
+    };
+  }, [playersByTeam]);
+
+  const timeline = useMemo(
+    () => [...goalEvents].sort((first, second) => first.timestamp.localeCompare(second.timestamp)),
+    [goalEvents]
+  );
 
   const handleEndGame = () => {
     onEndGame(players);
@@ -48,6 +103,13 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
           Live Game
         </h2>
         <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={() => setEditingTeams((current) => !current)}
+          >
+            {editingTeams ? "Done editing teams" : "Edit teams"}
+          </button>
           <button className="button button-secondary" type="button" onClick={onBack}>
             Back to setup
           </button>
@@ -72,9 +134,29 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
             background: "linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(30, 64, 175, 0.12))"
           }}
         >
-          <p style={{ margin: 0, textTransform: "uppercase", letterSpacing: "0.2em", color: "#1d4ed8" }}>
-            Team A
-          </p>
+          <label style={{ display: "block", margin: 0, color: "#1d4ed8", fontSize: "0.9rem", fontWeight: 600 }}>
+            Team A name
+            <input
+              value={localTeamNames.A}
+              onChange={(event) => handleTeamNameChange("A", event.target.value)}
+              onFocus={() => setActiveNameEdit("A")}
+              onBlur={() => {
+                setActiveNameEdit((current) => (current === "A" ? null : current));
+                commitTeamName("A");
+              }}
+              style={{
+                marginTop: "0.35rem",
+                width: "100%",
+                borderRadius: "999px",
+                border: "1px solid rgba(37, 99, 235, 0.4)",
+                padding: "0.4rem 0.75rem",
+                fontSize: "1rem",
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8"
+              }}
+              aria-label="Team A name"
+            />
+          </label>
           <p style={{ margin: "0.25rem 0 0", fontSize: "2.5rem", fontWeight: 700 }}>{teamAScore}</p>
         </div>
         <div
@@ -84,9 +166,29 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
             background: "linear-gradient(135deg, rgba(248, 113, 113, 0.18), rgba(239, 68, 68, 0.12))"
           }}
         >
-          <p style={{ margin: 0, textTransform: "uppercase", letterSpacing: "0.2em", color: "#b91c1c" }}>
-            Team B
-          </p>
+          <label style={{ display: "block", margin: 0, color: "#b91c1c", fontSize: "0.9rem", fontWeight: 600 }}>
+            Team B name
+            <input
+              value={localTeamNames.B}
+              onChange={(event) => handleTeamNameChange("B", event.target.value)}
+              onFocus={() => setActiveNameEdit("B")}
+              onBlur={() => {
+                setActiveNameEdit((current) => (current === "B" ? null : current));
+                commitTeamName("B");
+              }}
+              style={{
+                marginTop: "0.35rem",
+                width: "100%",
+                borderRadius: "999px",
+                border: "1px solid rgba(248, 113, 113, 0.4)",
+                padding: "0.4rem 0.75rem",
+                fontSize: "1rem",
+                backgroundColor: "#fef2f2",
+                color: "#b91c1c"
+              }}
+              aria-label="Team B name"
+            />
+          </label>
           <p style={{ margin: "0.25rem 0 0", fontSize: "2.5rem", fontWeight: 700 }}>{teamBScore}</p>
         </div>
       </div>
@@ -101,12 +203,10 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
                 color: team === "A" ? "#1d4ed8" : "#b91c1c"
               }}
             >
-              Team {team}
+              {resolvedTeamNames[team]}
             </h3>
             <div style={{ display: "grid", gap: "0.75rem" }}>
-              {players
-                .filter((player) => player.team === team)
-                .map((player) => (
+              {sortedPlayersByTeam[team].map((player) => (
                   <article
                     key={player.id}
                     style={{
@@ -131,13 +231,13 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
                         <button
                           className="button button-secondary"
                           type="button"
-                          onClick={() => adjustGoals(player.id, -1)}
+                          onClick={() => onAdjustGoal(player.id, -1)}
                           style={{
-                            width: "2.5rem",
-                            height: "2.5rem",
+                            width: "2rem",
+                            height: "2rem",
                             padding: 0,
                             borderRadius: "12px",
-                            fontSize: "1.25rem"
+                            fontSize: "1.15rem"
                           }}
                         >
                           –
@@ -145,13 +245,13 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
                         <button
                           className="button"
                           type="button"
-                          onClick={() => adjustGoals(player.id, 1)}
+                          onClick={() => onAdjustGoal(player.id, 1)}
                           style={{
-                            width: "2.5rem",
-                            height: "2.5rem",
+                            width: "3.25rem",
+                            height: "3.25rem",
                             padding: 0,
                             borderRadius: "12px",
-                            fontSize: "1.25rem"
+                            fontSize: "1.6rem"
                           }}
                         >
                           +
@@ -162,32 +262,45 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
                           <button
                             className="button button-secondary"
                             type="button"
-                            onClick={() => adjustAssists(player.id, -1)}
+                            onClick={() => onAdjustAssist(player.id, -1)}
                             style={{
-                              width: "2.5rem",
-                              height: "2.5rem",
+                              width: "2rem",
+                              height: "2rem",
                               padding: 0,
                               borderRadius: "12px",
-                              fontSize: "1.25rem"
+                              fontSize: "1.15rem"
                             }}
                           >
                             A-
                           </button>
                           <button
-                            className="button"
-                            type="button"
-                            onClick={() => adjustAssists(player.id, 1)}
-                            style={{
-                              width: "2.5rem",
-                              height: "2.5rem",
-                              padding: 0,
-                              borderRadius: "12px",
-                              fontSize: "1.25rem"
-                            }}
-                          >
-                            A+
-                          </button>
+                          className="button"
+                          type="button"
+                          onClick={() => onAdjustAssist(player.id, 1)}
+                          style={{
+                            width: "3.25rem",
+                            height: "3.25rem",
+                            padding: 0,
+                            borderRadius: "12px",
+                            fontSize: "1.6rem"
+                          }}
+                        >
+                          A+
+                        </button>
                         </div>
+                      )}
+                      {editingTeams && (
+                        <button
+                          type="button"
+                          className="button button-secondary"
+                          onClick={() => onAssignTeam(player.id, player.team === "A" ? "B" : "A")}
+                          style={{
+                            paddingInline: "0.75rem",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          Move to {player.team === "A" ? resolvedTeamNames.B : resolvedTeamNames.A}
+                        </button>
                       )}
                     </div>
                   </article>
@@ -196,6 +309,26 @@ export function GameScreen({ players, onPlayersChange, onEndGame, onBack, enable
           </div>
         ))}
       </div>
+
+      {timeline.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600 }}>Goal timeline</h3>
+          <ol style={{ paddingLeft: "1.25rem", margin: 0, display: "grid", gap: "0.5rem" }}>
+            {timeline.map((event, index) => (
+              <li key={event.id} style={{ color: "#0f172a" }}>
+                <span style={{ fontWeight: 600 }}>
+                  #{index + 1} {event.playerName}
+                </span>{" "}
+                <span style={{ color: "#64748b" }}>
+                  ({resolvedTeamNames[event.team]},{" "}
+                  {new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  )
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </section>
   );
 }

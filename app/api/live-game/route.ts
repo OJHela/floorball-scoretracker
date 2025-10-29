@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { emptyLiveGameState, type LiveGameState, type TeamSide } from "../../../types";
+import {
+  emptyLiveGameState,
+  type GoalEvent,
+  type LiveGameState,
+  type TeamNames,
+  type TeamSide
+} from "../../../types";
 import { ensureLeagueMembership, resolveLeagueIdFromToken } from "../../../lib/leagueAccess";
 import { getSupabaseServerClient } from "../../../lib/supabaseServer";
 
@@ -45,20 +51,59 @@ function sanitizeLiveGameState(state: LiveGameState | null | undefined): LiveGam
         assists: typeof player.assists === "number" ? Math.max(0, player.assists) : 0
       }))
     : [];
+  const teamNames: TeamNames =
+    state.teamNames && typeof state.teamNames === "object"
+      ? {
+          A: typeof state.teamNames.A === "string" ? state.teamNames.A : "Team A",
+          B: typeof state.teamNames.B === "string" ? state.teamNames.B : "Team B"
+        }
+      : { A: "Team A", B: "Team B" };
+  const goalEvents = Array.isArray(state.goalEvents)
+    ? state.goalEvents
+        .map((event: any): GoalEvent | null => {
+          const playerId = typeof event.playerId === "string" ? event.playerId : String(event.playerId ?? "");
+          const playerName = typeof event.playerName === "string" ? event.playerName : "";
+          const team = event.team === "B" ? "B" : "A";
+          const timestamp =
+            typeof event.timestamp === "string" && event.timestamp.length > 0
+              ? event.timestamp
+              : new Date().toISOString();
+          const id =
+            typeof event.id === "string" && event.id.length > 0
+              ? event.id
+              : typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `${playerId}-${timestamp}`;
+          if (!playerId) return null;
+          return {
+            id,
+            playerId,
+            playerName,
+            team,
+            timestamp
+          };
+        })
+        .filter((event: GoalEvent | null): event is GoalEvent => Boolean(event))
+    : [];
   const secondsElapsed = typeof state.secondsElapsed === "number" ? state.secondsElapsed : 0;
   const isTimerRunning = Boolean(state.isTimerRunning);
   const timerOwnerId = typeof state.timerOwnerId === "string" ? state.timerOwnerId : null;
+  const lastUpdated =
+    typeof state.lastUpdated === "number" && Number.isFinite(state.lastUpdated) ? state.lastUpdated : Date.now();
 
   return {
     stage: stage === "setup" || stage === "game" || stage === "summary" ? stage : "roster",
     selectedPlayerIds,
     assignments,
     gamePlayers,
+    teamNames,
+    goalEvents,
     secondsElapsed,
     isTimerRunning,
     timerOwnerId,
     alarmAtSeconds: typeof state.alarmAtSeconds === "number" ? Math.max(0, state.alarmAtSeconds) : null,
-    alarmAcknowledged: Boolean(state.alarmAcknowledged)
+    alarmAcknowledged: Boolean(state.alarmAcknowledged),
+    lastUpdated
   };
 }
 

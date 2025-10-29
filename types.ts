@@ -13,6 +13,16 @@ export type GamePlayer = Player & {
   assists: number;
 };
 
+export type TeamNames = Record<TeamSide, string>;
+
+export type GoalEvent = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  team: TeamSide;
+  timestamp: string;
+};
+
 export type SessionPlayerPayload = {
   playerId: string;
   team: TeamSide;
@@ -27,6 +37,8 @@ export type SessionPayload = {
   teamBScore: number;
   winner: TeamSide | "Tie";
   players: SessionPlayerPayload[];
+  goalEvents: GoalEvent[];
+  teamNames?: TeamNames;
 };
 
 export type SavedSession = {
@@ -35,6 +47,8 @@ export type SavedSession = {
   teamAScore: number;
   teamBScore: number;
   winner: TeamSide | "Tie";
+  goalEvents: GoalEvent[];
+  teamNames?: TeamNames;
   players: Array<
     SessionPlayerPayload & {
       playerName: string;
@@ -83,11 +97,14 @@ export type LiveGameState = {
   selectedPlayerIds: string[];
   assignments: Record<string, TeamSide>;
   gamePlayers: GamePlayer[];
+  teamNames: TeamNames;
+  goalEvents: GoalEvent[];
   secondsElapsed: number;
   isTimerRunning: boolean;
   timerOwnerId: string | null;
   alarmAtSeconds: number | null;
   alarmAcknowledged: boolean;
+  lastUpdated: number;
 };
 
 export const emptyLiveGameState: LiveGameState = {
@@ -95,11 +112,14 @@ export const emptyLiveGameState: LiveGameState = {
   selectedPlayerIds: [],
   assignments: {},
   gamePlayers: [],
+  teamNames: { A: "Team A", B: "Team B" },
+  goalEvents: [],
   secondsElapsed: 0,
   isTimerRunning: false,
   timerOwnerId: null,
   alarmAtSeconds: null,
-  alarmAcknowledged: false
+  alarmAcknowledged: false,
+  lastUpdated: 0
 };
 
 export type ScoringConfig = {

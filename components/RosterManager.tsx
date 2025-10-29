@@ -21,6 +21,9 @@ type EditingState = {
   name: string;
 } | null;
 
+const sortPlayersByName = (list: Player[]) =>
+  [...list].sort((first, second) => first.name.localeCompare(second.name));
+
 export function RosterManager({
   onRosterLoaded,
   onNext,
@@ -55,8 +58,9 @@ export function RosterManager({
       }
 
       const payload = (await response.json()) as { players: Player[] };
-      setPlayers(payload.players);
-      onRosterLoaded(payload.players);
+      const sorted = sortPlayersByName(payload.players);
+      setPlayers(sorted);
+      onRosterLoaded(sorted);
       setLoading(false);
     };
 
@@ -83,7 +87,7 @@ export function RosterManager({
     }
 
     const { player } = (await response.json()) as { player: Player };
-    const updated = [...players, player];
+    const updated = sortPlayersByName([...players, player]);
     setPlayers(updated);
     onRosterLoaded(updated);
     setNewPlayerName("");
@@ -116,8 +120,8 @@ export function RosterManager({
       return;
     }
 
-    const updated = players.map((player) =>
-      player.id === editing.id ? { ...player, name: trimmed } : player
+    const updated = sortPlayersByName(
+      players.map((player) => (player.id === editing.id ? { ...player, name: trimmed } : player))
     );
     setPlayers(updated);
     onRosterLoaded(updated);
@@ -135,7 +139,7 @@ export function RosterManager({
       return;
     }
 
-    const updated = players.filter((item) => item.id !== player.id);
+    const updated = sortPlayersByName(players.filter((item) => item.id !== player.id));
     setPlayers(updated);
     onRosterLoaded(updated);
   };

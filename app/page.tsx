@@ -21,6 +21,7 @@ import { buildWeeklyPoints } from "../lib/scoring";
 import {
   emptyLiveGameState,
   type GamePlayer,
+  type GoalEvent,
   type League,
   type LeagueAccess,
   type LeagueSummary,
@@ -80,7 +81,7 @@ function PageContent() {
 
   const updatingFromRemoteRef = useRef(false);
   const persistQueueRef = useRef<LiveGameState | null>(null);
-  const pendingSessionRef = useRef<GamePlayer[] | null>(null);
+  const pendingSessionRef = useRef<{ players: GamePlayer[]; goalEvents: GoalEvent[] } | null>(null);
   const clientIdRef = useRef<string>("");
   if (!clientIdRef.current) {
     clientIdRef.current =
@@ -276,12 +277,25 @@ function PageContent() {
   }, []);
 
   const applyRemoteState = useCallback((state: LiveGameState) => {
-    updatingFromRemoteRef.current = true;
-    setGameState({
-      ...state,
-      selectedPlayerIds: [...state.selectedPlayerIds],
-      assignments: { ...state.assignments },
-      gamePlayers: state.gamePlayers.map((player) => ({ ...player }))
+    setGameState((prev) => {
+      const incomingTimestamp =
+        typeof state.lastUpdated === "number" && Number.isFinite(state.lastUpdated) ? state.lastUpdated : Date.now();
+      if (incomingTimestamp < prev.lastUpdated) {
+        updatingFromRemoteRef.current = false;
+        return prev;
+      }
+
+      updatingFromRemoteRef.current = true;
+      return {
+        ...prev,
+        ...state,
+        selectedPlayerIds: [...state.selectedPlayerIds],
+        assignments: { ...state.assignments },
+        gamePlayers: state.gamePlayers.map((player) => ({ ...player })),
+        teamNames: { A: state.teamNames.A, B: state.teamNames.B },
+        goalEvents: state.goalEvents.map((event) => ({ ...event })),
+        lastUpdated: incomingTimestamp
+      };
     });
   }, []);
 
@@ -310,8 +324,9 @@ function PageContent() {
     (updater: (prev: LiveGameState) => LiveGameState) => {
       setGameState((prev) => {
         const next = updater(prev);
-        persistQueueRef.current = next;
-        return next;
+        const stamped = { ...next, lastUpdated: Date.now() };
+        persistQueueRef.current = stamped;
+        return stamped;
       });
     },
     []
@@ -406,6 +421,8 @@ function PageContent() {
           ...player,
           assists: player.assists ?? 0
         })),
+        teamNames: { ...prev.teamNames },
+        goalEvents: [],
         secondsElapsed: 0,
         isTimerRunning: false,
         timerOwnerId: null,
@@ -415,28 +432,136 @@ function PageContent() {
     [scheduleLocalUpdate]
   );
 
-  const handlePlayersChange = useCallback(
-    (players: GamePlayer[]) => {
+  const handleTeamNamesChange = useCallback(
+    (team: "A" | "B", name: string) => {
       scheduleLocalUpdate((prev) => ({
         ...prev,
-        gamePlayers: players.map((player) => ({
-          ...player,
-          assists: player.assists ?? 0
-        }))
+        teamNames: {
+          ...prev.teamNames,
+          [team]: name
+        }
+      }));
+    },
+    [scheduleLocalUpdate]
+  );
+
+  const handleGoalAdjust = useCallback(
+    (playerId: string, delta: number) => {
+      if (!delta) return;
+      scheduleLocalUpdate((prev) => {
+        const nextPlayers = prev.gamePlayers.map((player) => {
+          if (player.id !== playerId) return { ...player };
+          const nextGoals = Math.max(0, player.goals + delta);
+          return { ...player, goals: nextGoals };
+        });
+
+        const targetBefore = prev.gamePlayers.find((player) => player.id === playerId);
+        if (!targetBefore) {
+          return { ...prev, gamePlayers: nextPlayers };
+        }
+
+        const targetAfter = nextPlayers.find((player) => player.id === playerId) ?? targetBefore;
+        const events = [...prev.goalEvents];
+
+        if (delta > 0) {
+          const additions = Array.from({ length: delta }, () => {
+            const id =
+              typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                ? crypto.randomUUID()
+                : `${playerId}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            return {
+              id,
+              playerId,
+              playerName: targetAfter.name,
+              team: targetAfter.team,
+              timestamp: new Date().toISOString()
+            } satisfies GoalEvent;
+          });
+          events.push(...additions);
+        } else {
+          let removalsNeeded = Math.min(
+            -delta,
+            events.reduce((count, event) => (event.playerId === playerId ? count + 1 : count), 0)
+          );
+          if (removalsNeeded > 0) {
+            for (let index = events.length - 1; index >= 0 && removalsNeeded > 0; index -= 1) {
+              if (events[index].playerId !== playerId) continue;
+              events.splice(index, 1);
+              removalsNeeded -= 1;
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          gamePlayers: nextPlayers.map((player) => ({
+            ...player,
+            assists: player.assists ?? 0
+          })),
+          goalEvents: events
+        };
+      });
+    },
+    [scheduleLocalUpdate]
+  );
+
+  const handleAssignPlayerTeam = useCallback(
+    (playerId: string, nextTeam: "A" | "B") => {
+      scheduleLocalUpdate((prev) => {
+        const currentPlayer = prev.gamePlayers.find((player) => player.id === playerId);
+        if (!currentPlayer || currentPlayer.team === nextTeam) {
+          return prev;
+        }
+
+        const nextPlayers = prev.gamePlayers.map((player) =>
+          player.id === playerId ? { ...player, team: nextTeam } : { ...player }
+        );
+
+        const updatedEvents = prev.goalEvents.map((event) =>
+          event.playerId === playerId ? { ...event, team: nextTeam } : { ...event }
+        );
+
+        const updatedAssignments = { ...prev.assignments, [playerId]: nextTeam };
+
+        return {
+          ...prev,
+          gamePlayers: nextPlayers,
+          goalEvents: updatedEvents,
+          assignments: updatedAssignments
+        };
+      });
+    },
+    [scheduleLocalUpdate]
+  );
+
+  const handleAssistAdjust = useCallback(
+    (playerId: string, delta: number) => {
+      if (!delta) return;
+      scheduleLocalUpdate((prev) => ({
+        ...prev,
+        gamePlayers: prev.gamePlayers.map((player) =>
+          player.id === playerId
+            ? {
+                ...player,
+                assists: Math.max(0, (player.assists ?? 0) + delta)
+              }
+            : { ...player }
+        )
       }));
     },
     [scheduleLocalUpdate]
   );
 
   const submitSession = useCallback(
-    async (players: GamePlayer[], allowQueue = true) => {
+    async (players: GamePlayer[], goalEvents: GoalEvent[], allowQueue = true) => {
       if (!apiConfig) return;
       const snapshot = players.map((player) => ({ ...player }));
+      const eventsSnapshot = goalEvents.map((event) => ({ ...event }));
       const { payload, teamScores, winner } = buildWeeklyPoints(snapshot, scoringConfig);
 
       if (!isOnline) {
         if (allowQueue) {
-          pendingSessionRef.current = snapshot;
+          pendingSessionRef.current = { players: snapshot, goalEvents: eventsSnapshot };
           setSaveState({ saving: false, error: "Saved locally. Will sync when back online." });
         }
         return;
@@ -451,7 +576,8 @@ function PageContent() {
             teamAScore: teamScores.A,
             teamBScore: teamScores.B,
             winner,
-            players: payload
+            players: payload,
+            goalEvents: eventsSnapshot
           })
         });
 
@@ -464,7 +590,7 @@ function PageContent() {
         pendingSessionRef.current = null;
         setSaveState({ saving: false, error: null });
       } catch (error) {
-        if (allowQueue) pendingSessionRef.current = snapshot;
+        if (allowQueue) pendingSessionRef.current = { players: snapshot, goalEvents: eventsSnapshot };
         const message = error instanceof Error ? error.message : "Failed to save session";
         setSaveState({ saving: false, error: message });
       }
@@ -478,17 +604,21 @@ function PageContent() {
         ...player,
         assists: player.assists ?? 0
       }));
+      const finalizedEvents = gameState.goalEvents.map((event) => ({ ...event }));
+      const teamNames = { ...gameState.teamNames };
 
       scheduleLocalUpdate((prev) => ({
         ...prev,
         stage: "summary",
         gamePlayers: finalizedPlayers,
+        teamNames,
+        goalEvents: finalizedEvents,
         alarmAtSeconds: null,
         alarmAcknowledged: false
       }));
-      submitSession(finalizedPlayers);
+      submitSession(finalizedPlayers, finalizedEvents);
     },
-    [scheduleLocalUpdate, submitSession]
+    [gameState.goalEvents, gameState.teamNames, scheduleLocalUpdate, submitSession]
   );
 
   useEffect(() => {
@@ -496,7 +626,7 @@ function PageContent() {
     if (!pendingSessionRef.current) return;
     const snapshot = pendingSessionRef.current;
     pendingSessionRef.current = null;
-    submitSession(snapshot, false);
+    submitSession(snapshot.players, snapshot.goalEvents, false);
   }, [isOnline, submitSession]);
 
   const resetToRoster = useCallback(() => {
@@ -963,29 +1093,38 @@ function PageContent() {
               roster={roster}
               selectedPlayerIds={gameState.selectedPlayerIds}
               assignments={gameState.assignments}
+              teamNames={gameState.teamNames}
               onToggleSelection={toggleSelection}
               onToggleTeam={toggleTeam}
+              onTeamNamesChange={handleTeamNamesChange}
               onStartGame={handleStartGame}
               onBack={goToRoster}
             />
           )}
 
           {gameState.stage === "game" && (
-        <GameScreen
-          players={gameState.gamePlayers}
-          onPlayersChange={handlePlayersChange}
-          onEndGame={handleEndGame}
-          onBack={goToSetup}
-          enableAssists={scoringConfig.enableAssists}
-        />
-      )}
+            <GameScreen
+              players={gameState.gamePlayers}
+              teamNames={gameState.teamNames}
+              goalEvents={gameState.goalEvents}
+              onAdjustGoal={handleGoalAdjust}
+              onAdjustAssist={handleAssistAdjust}
+              onAssignTeam={handleAssignPlayerTeam}
+              onTeamNamesChange={handleTeamNamesChange}
+              onEndGame={handleEndGame}
+              onBack={goToSetup}
+              enableAssists={scoringConfig.enableAssists}
+            />
+          )}
 
-      {gameState.stage === "summary" && (
-        <GameSummary
-          players={gameState.gamePlayers}
-          onReset={resetToRoster}
-          saving={saveState.saving}
-          lastError={saveState.error}
+          {gameState.stage === "summary" && (
+            <GameSummary
+              players={gameState.gamePlayers}
+              goalEvents={gameState.goalEvents}
+              teamNames={gameState.teamNames}
+              onReset={resetToRoster}
+              saving={saveState.saving}
+              lastError={saveState.error}
           history={history}
           scoringConfig={scoringConfig}
             />

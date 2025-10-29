@@ -44,6 +44,8 @@ export async function GET(request: Request) {
         team_a_score,
         team_b_score,
         winner,
+        team_names,
+        goal_events,
         session_players:session_players (
           player_id,
           team,
@@ -71,6 +73,21 @@ export async function GET(request: Request) {
       teamAScore: row.team_a_score,
       teamBScore: row.team_b_score,
       winner: row.winner,
+      teamNames:
+        row.team_names && typeof row.team_names === "object"
+          ? {
+              A: typeof row.team_names.A === "string" && row.team_names.A.trim().length > 0 ? row.team_names.A : "Team A",
+              B: typeof row.team_names.B === "string" && row.team_names.B.trim().length > 0 ? row.team_names.B : "Team B"
+            }
+          : { A: "Team A", B: "Team B" },
+      goalEvents:
+        (row.goal_events ?? []).map((event: any) => ({
+          id: typeof event.id === "string" ? event.id : `${event.playerId ?? "unknown"}-${row.id}`,
+          playerId: String(event.playerId),
+          playerName: event.playerName ?? "Unknown",
+          team: event.team === "B" ? "B" : "A",
+          timestamp: typeof event.timestamp === "string" ? event.timestamp : new Date(row.created_at).toISOString()
+        })),
       players:
         row.session_players?.map((player: any) => ({
           playerId: player.player_id,
@@ -125,7 +142,8 @@ export async function POST(request: Request) {
       team_a_score: payload.teamAScore,
       team_b_score: payload.teamBScore,
       winner: payload.winner,
-      league_id: context.leagueId
+      league_id: context.leagueId,
+      goal_events: payload.goalEvents ?? []
     })
     .select("id, created_at, team_a_score, team_b_score, winner")
     .single();
@@ -158,7 +176,8 @@ export async function POST(request: Request) {
       createdAt: sessionRow.created_at,
       teamAScore: sessionRow.team_a_score,
       teamBScore: sessionRow.team_b_score,
-      winner: sessionRow.winner
+      winner: sessionRow.winner,
+      goalEvents: payload.goalEvents ?? []
     }
   });
 }

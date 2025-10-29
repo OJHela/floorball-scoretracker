@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
-import { type GamePlayer, type Player, type TeamSide } from "../types";
+import { useEffect, useMemo, useState } from "react";
+import { type GamePlayer, type Player, type TeamNames, type TeamSide } from "../types";
 
 type SessionSetupProps = {
   roster: Player[];
   selectedPlayerIds: string[];
   assignments: Record<string, TeamSide>;
+  teamNames: TeamNames;
   onToggleSelection: (playerId: string) => void;
   onToggleTeam: (playerId: string) => void;
+  onTeamNamesChange: (team: "A" | "B", name: string) => void;
   onStartGame: (players: GamePlayer[]) => void;
   onBack: () => void;
 };
@@ -17,12 +19,47 @@ export function SessionSetup({
   roster,
   selectedPlayerIds,
   assignments,
+  teamNames,
   onToggleSelection,
   onToggleTeam,
+  onTeamNamesChange,
   onStartGame,
   onBack
 }: SessionSetupProps) {
   const canStart = selectedPlayerIds.length >= 2;
+
+  const [activeNameEdit, setActiveNameEdit] = useState<"A" | "B" | null>(null);
+  const [localTeamNames, setLocalTeamNames] = useState<TeamNames>(teamNames);
+
+  useEffect(() => {
+    if (activeNameEdit !== "A" && teamNames.A !== localTeamNames.A) {
+      setLocalTeamNames((prev) => ({ ...prev, A: teamNames.A }));
+    }
+    if (activeNameEdit !== "B" && teamNames.B !== localTeamNames.B) {
+      setLocalTeamNames((prev) => ({ ...prev, B: teamNames.B }));
+    }
+  }, [teamNames, activeNameEdit, localTeamNames.A, localTeamNames.B]);
+
+  const handleTeamNameChange = (team: "A" | "B", value: string) => {
+    setLocalTeamNames((prev) => ({ ...prev, [team]: value }));
+  };
+
+  const commitTeamName = (team: "A" | "B") => {
+    onTeamNamesChange(team, localTeamNames[team]);
+  };
+
+  const sortedRoster = useMemo(
+    () => [...roster].sort((first, second) => first.name.localeCompare(second.name)),
+    [roster]
+  );
+
+  const resolvedTeamNames = useMemo(
+    () => ({
+      A: localTeamNames.A && localTeamNames.A.trim().length > 0 ? localTeamNames.A : "Team A",
+      B: localTeamNames.B && localTeamNames.B.trim().length > 0 ? localTeamNames.B : "Team B"
+    }),
+    [localTeamNames]
+  );
 
   const lineup = useMemo<GamePlayer[]>(() => {
     return selectedPlayerIds
@@ -36,7 +73,8 @@ export function SessionSetup({
           assists: 0
         } satisfies GamePlayer;
       })
-      .filter((value): value is GamePlayer => Boolean(value));
+      .filter((value): value is GamePlayer => Boolean(value))
+      .sort((first, second) => first.name.localeCompare(second.name));
   }, [assignments, roster, selectedPlayerIds]);
 
   const groupedCounts = useMemo(() => {
@@ -51,6 +89,8 @@ export function SessionSetup({
 
   const handleStart = () => {
     if (!canStart) return;
+    commitTeamName("A");
+    commitTeamName("B");
     onStartGame(lineup);
   };
 
@@ -90,18 +130,61 @@ export function SessionSetup({
         }}
       >
         <div className="pill" style={{ backgroundColor: "rgba(59, 130, 246, 0.12)", color: "#1d4ed8" }}>
-          Team A: {groupedCounts.A}
+          {resolvedTeamNames.A}: {groupedCounts.A}
         </div>
         <div className="pill" style={{ backgroundColor: "rgba(248, 113, 113, 0.12)", color: "#b91c1c" }}>
-          Team B: {groupedCounts.B}
+          {resolvedTeamNames.B}: {groupedCounts.B}
         </div>
         <div className="pill" style={{ backgroundColor: "rgba(100, 116, 139, 0.12)", color: "#475569" }}>
           Attending: {selectedPlayerIds.length}
         </div>
       </div>
 
+      <div
+        style={{
+          display: "grid",
+          gap: "0.75rem",
+          marginTop: "1.5rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
+        }}
+      >
+        {(["A", "B"] as const).map((team) => (
+          <label
+            key={team}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.35rem",
+              fontWeight: 600,
+              color: team === "A" ? "#1d4ed8" : "#b91c1c"
+            }}
+          >
+            {team === "A" ? "Team A name" : "Team B name"}
+            <input
+              value={localTeamNames[team]}
+              onChange={(event) => handleTeamNameChange(team, event.target.value)}
+              onFocus={() => setActiveNameEdit(team)}
+              onBlur={() => {
+                setActiveNameEdit((current) => (current === team ? null : current));
+                commitTeamName(team);
+              }}
+              placeholder={resolvedTeamNames[team]}
+              style={{
+                borderRadius: "999px",
+                border: "1px solid rgba(148, 163, 184, 0.5)",
+                padding: "0.6rem 1rem",
+                backgroundColor: "#f8fafc",
+                fontSize: "1rem",
+                color: "#0f172a"
+              }}
+              aria-label={team === "A" ? "Team A name" : "Team B name"}
+            />
+          </label>
+        ))}
+      </div>
+
       <ul style={{ listStyle: "none", margin: "1.5rem 0 0", padding: 0, display: "grid", gap: "0.75rem" }}>
-        {roster.map((player) => {
+        {sortedRoster.map((player) => {
           const selected = selectedPlayerIds.includes(player.id);
           const team = assignments[player.id] ?? "A";
 
