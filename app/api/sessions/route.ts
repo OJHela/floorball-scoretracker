@@ -44,7 +44,6 @@ export async function GET(request: Request) {
         team_a_score,
         team_b_score,
         winner,
-        team_names,
         goal_events,
         session_players:session_players (
           player_id,
@@ -73,13 +72,6 @@ export async function GET(request: Request) {
       teamAScore: row.team_a_score,
       teamBScore: row.team_b_score,
       winner: row.winner,
-      teamNames:
-        row.team_names && typeof row.team_names === "object"
-          ? {
-              A: typeof row.team_names.A === "string" && row.team_names.A.trim().length > 0 ? row.team_names.A : "Team A",
-              B: typeof row.team_names.B === "string" && row.team_names.B.trim().length > 0 ? row.team_names.B : "Team B"
-            }
-          : { A: "Team A", B: "Team B" },
       goalEvents:
         (row.goal_events ?? []).map((event: any) => ({
           id: typeof event.id === "string" ? event.id : `${event.playerId ?? "unknown"}-${row.id}`,
